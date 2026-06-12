@@ -1,0 +1,141 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ----------------------------------------------------------------------
+// ENUMERADORES
+// ----------------------------------------------------------------------
+enum Rol {
+  ADMIN
+  OPERADOR
+}
+
+enum EstadoTicket {
+  PENDIENTE
+  ASIGNADO
+  EN_PROCESO
+  EN_REVISION
+  FINALIZADO
+}
+
+enum Prioridad {
+  BAJA
+  MEDIA
+  ALTA
+  CRITICA
+}
+
+// ----------------------------------------------------------------------
+// MODELOS
+// ----------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(uuid())
+  nombre        String
+  correo        String?   @unique
+  telefono      String?   @unique
+  contrasena    String?   
+  rol           Rol       @default(OPERADOR)
+  creadoEn      DateTime  @default(now())
+  actualizadoEn DateTime  @updatedAt
+
+  ticketsAsignados        Ticket[]   @relation("TicketsAsignados")
+  comentarios             Comment[]
+  transferenciasEnviadas  Transfer[] @relation("TransferenciaOrigen")
+  transferenciasRecibidas Transfer[] @relation("TransferenciaDestino")
+  cambiosHistorial        History[]  @relation("HistorialUsuario")
+}
+
+model Ticket {
+  id            String       @id @default(uuid())
+  folio         String       @unique 
+  titulo        String
+  descripcion   String       @db.Text
+  estado        EstadoTicket @default(PENDIENTE)
+  prioridad     Prioridad    @default(MEDIA)
+  fechaLimite   DateTime?    
+  creadoEn      DateTime     @default(now())
+  actualizadoEn DateTime     @updatedAt
+
+  asignadoAId   String?
+  asignadoA     User?        @relation("TicketsAsignados", fields: [asignadoAId], references: [id])
+  
+  actividades   Activity[]
+  comentarios   Comment[]
+  transferencias Transfer[]
+  evidencias    Evidence[]
+  historiales   History[]
+}
+
+model Activity {
+  id          String   @id @default(uuid())
+  titulo      String
+  descripcion String?  @db.Text
+  completada  Boolean  @default(false)
+  creadoEn    DateTime @default(now())
+  
+  ticketId    String
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  contenido String   @db.Text
+  creadoEn  DateTime @default(now())
+
+  autorId   String
+  autor     User     @relation(fields: [autorId], references: [id])
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}
+
+model Transfer {
+  id               String    @id @default(uuid())
+  motivo           String    @db.Text
+  
+  // ⏱️ Control de tiempos para la auditoría de retrasos
+  fechaInicio      DateTime  @default(now()) // Cuando el nuevo operador toma el ticket
+  fechaFin         DateTime?                 // Cuando lo transfiere o lo finaliza
+
+  ticketId         String
+  ticket           Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  
+  origenUsuarioId  String?
+  origenUsuario    User?     @relation("TransferenciaOrigen", fields: [origenUsuarioId], references: [id])
+  
+  destinoUsuarioId String
+  destinoUsuario   User      @relation("TransferenciaDestino", fields: [destinoUsuarioId], references: [id])
+}
+
+model Evidence {
+  id            String   @id @default(uuid())
+  urlArchivo    String   
+  nombreArchivo String
+  tipoArchivo   String   
+  creadoEn      DateTime @default(now())
+
+  ticketId      String
+  ticket        Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}
+
+model History {
+  id            String   @id @default(uuid())
+  accion        String   
+  valorAnterior String?
+  valorNuevo    String?
+  creadoEn      DateTime @default(now())
+
+  ticketId      String
+  ticket        Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  usuarioId     String
+  usuario       User     @relation("HistorialUsuario", fields: [usuarioId], references: [id])
+}
