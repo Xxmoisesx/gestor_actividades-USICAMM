@@ -2,8 +2,10 @@ import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { prisma } from "@/lib/prisma" 
 import bcrypt from "bcryptjs"
+import { authConfig } from "./auth.config"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  ...authConfig,
   providers: [
     Credentials({
       name: "Credenciales",
@@ -12,7 +14,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         contrasena: { label: "Contraseña", type: "password" }
       },
       async authorize(credentials) {
-        // Detectar de forma flexible si vienen como 'correo' o 'email'
         const emailInput = credentials?.correo || credentials?.correo;
         const passwordInput = credentials?.contrasena || credentials?.contrasena;
 
@@ -20,7 +21,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           throw new Error("Faltan datos")
         }
 
-        // 1. Busca el usuario en Supabase usando el correo
+        // 1. Busca el usuario en la DB usando el correo
         const usuario = await prisma.user.findUnique({
           where: { correo: emailInput as string }
         })
@@ -48,12 +49,5 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
       }
     })
-  ],
- // ... tu configuración anterior de NextAuth ...
-  pages: {
-    signIn: '/', 
-  },
-  session: {
-    strategy: "jwt",
-  }
+  ]
 })

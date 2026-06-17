@@ -21,32 +21,15 @@ export default function UsuariosPage() {
         </div>
       </div>
 
-      {/* ================= NAVEGACIÓN POR PESTAÑAS (TABS) ================= */}
+      
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 text-xs">
         <div className="flex flex-wrap gap-1 -mb-px">
           <button className="border-b-2 border-[#6A1B29] text-[#6A1B29] font-bold px-4 py-3.5 transition-all">
             Lista de usuarios
           </button>
-          <button className="text-slate-500 hover:text-slate-800 font-medium px-4 py-3.5 transition-all">
-            Carga de trabajo
-          </button>
-          <button className="text-slate-500 hover:text-slate-800 font-medium px-4 py-3.5 transition-all">
-            Rendimiento
-          </button>
-          <button className="text-slate-500 hover:text-slate-800 font-medium px-4 py-3.5 transition-all">
-            Roles y permisos
-          </button>
-          <button className="text-slate-500 hover:text-slate-800 font-medium px-4 py-3.5 transition-all">
-            Bitácora de usuarios
-          </button>
         </div>
         
-        <button className="bg-[#6A1B29] hover:bg-[#54141F] text-white px-4 py-2 rounded-lg font-bold shadow-sm transition-colors cursor-pointer flex items-center gap-2 mb-2 sm:mb-0">
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-          </svg>
-          Nuevo usuario
-        </button>
+        
       </div>
 
       {/* ================= CARDS DE INDICADORES (KPIs) ================= */}
@@ -182,7 +165,7 @@ export default function UsuariosPage() {
                     <th className="p-4">Estado</th>
                     <th className="p-4 text-center">Act. Activas</th>
                     <th className="p-4 text-center">Act. Finalizadas</th>
-                    <th className="p-4 text-center">Acciones</th>
+                    
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
@@ -201,10 +184,7 @@ export default function UsuariosPage() {
                     <td className="p-4"><span className="inline-flex items-center gap-1.5 bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-bold text-[10px] border border-green-100"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />Activo</span></td>
                     <td className="p-4 text-center font-bold text-slate-800">12</td>
                     <td className="p-4 text-center font-bold text-slate-400">85</td>
-                    <td className="p-4 text-center text-slate-400 space-x-2">
-                      <button className="hover:text-slate-700 cursor-pointer">👁️</button>
-                      <button className="hover:text-slate-700 cursor-pointer">📝</button>
-                    </td>
+                    
                   </tr>
 
                   {/* Fila 2 */}
@@ -222,10 +202,7 @@ export default function UsuariosPage() {
                     <td className="p-4"><span className="inline-flex items-center gap-1.5 bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-bold text-[10px] border border-green-100"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />Activo</span></td>
                     <td className="p-4 text-center font-bold text-slate-800">9</td>
                     <td className="p-4 text-center font-bold text-slate-400">76</td>
-                    <td className="p-4 text-center text-slate-400 space-x-2">
-                      <button className="hover:text-slate-700 cursor-pointer">👁️</button>
-                      <button className="hover:text-slate-700 cursor-pointer">📝</button>
-                    </td>
+                    
                   </tr>
 
                   {/* Fila 3 - Ausente */}
@@ -243,10 +220,7 @@ export default function UsuariosPage() {
                     <td className="p-4"><span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-bold text-[10px] border border-amber-100"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" />Ausente</span></td>
                     <td className="p-4 text-center font-bold text-slate-800">0</td>
                     <td className="p-4 text-center font-bold text-slate-400">38</td>
-                    <td className="p-4 text-center text-slate-400 space-x-2">
-                      <button className="hover:text-slate-700 cursor-pointer">👁️</button>
-                      <button className="hover:text-slate-700 cursor-pointer">📝</button>
-                    </td>
+                    
                   </tr>
                 </tbody>
               </table>
@@ -261,10 +235,7 @@ export default function UsuariosPage() {
                   <button className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white text-slate-500 font-medium cursor-pointer">2</button>
                   <button className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white text-slate-500 font-medium cursor-pointer">3</button>
                 </div>
-                <select className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-700 focus:outline-none">
-                  <option>10 por página</option>
-                  <option>20 por página</option>
-                </select>
+                
               </div>
             </div>
           </div>
@@ -317,21 +288,7 @@ export default function UsuariosPage() {
             </div>
           </div>
 
-          {/* Acciones Rápidas */}
-          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
-            <h2 className="text-xs font-bold text-slate-700 uppercase tracking-wide border-b border-slate-50 pb-2">Acciones rápidas</h2>
-            <div className="grid grid-cols-1 gap-2 text-xs font-bold">
-              <button className="w-full text-left p-2.5 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-700 border border-slate-200 transition-colors cursor-pointer flex items-center gap-2">
-                <span>➕</span> Asignar actividades
-              </button>
-              <button className="w-full text-left p-2.5 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-700 border border-slate-200 transition-colors cursor-pointer flex items-center gap-2">
-                <span>📊</span> Ver rendimiento
-              </button>
-              <button className="w-full text-left p-2.5 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-700 border border-slate-200 transition-colors cursor-pointer flex items-center gap-2">
-                <span>📥</span> Exportar usuarios
-              </button>
-            </div>
-          </div>
+          
 
         </div>
       </div>

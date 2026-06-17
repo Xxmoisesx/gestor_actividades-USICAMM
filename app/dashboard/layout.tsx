@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import NavbarTitle from "@/components/NavbarTitle";
+import { useSession, signOut } from "next-auth/react";
 import { 
   Menu, 
   Home, 
@@ -15,24 +16,35 @@ import {
   Bell, 
   Sliders, 
   LogOut,
-  Search // Agregamos el ícono de búsqueda
+  Search
 } from "lucide-react";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const pathname = usePathname();
+  const { data: session } = useSession();
 
-  const menuPrincipal = [
-    { nombre: "Dashboard", ruta: "/dashboard", icono: Home },
-    { nombre: "Actividades", ruta: "/dashboard/gestion", icono: List },
-    { nombre: "Crear actividad", ruta: "/dashboard/crear", icono: FilePlus },
-    { nombre: "Reportes", ruta: "/dashboard/reportes", icono: FileText },
-    { nombre: "Usuarios", ruta: "/dashboard/usuarios", icono: Users },
-  ];7
+  const nombreUsuario = session?.user?.name || "Usuario";
+  
+  // Aquí definimos si es Administrador u Operador basándonos en la sesión
+  const rolUsuario = (session?.user as any)?.role === "ADMIN" ? "Administrador" : "Operador";
 
-  const menuInferior = [
-    { nombre: "Configuración", ruta: "/dashboard/configuracion", icono: Sliders },
+  // 1. Definimos todas las opciones posibles con sus roles permitidos
+  const menuPrincipalCompleto = [
+    { nombre: "Dashboard", ruta: "/dashboard", icono: Home, roles: ["Administrador", "Operador"] },
+    { nombre: "Actividades", ruta: "/dashboard/gestion", icono: List, roles: ["Administrador", "Operador"] },
+    { nombre: "Crear actividad", ruta: "/dashboard/crear", icono: FilePlus, roles: ["Administrador"] },
+    { nombre: "Reportes", ruta: "/dashboard/reportes", icono: FileText, roles: ["Administrador"] },
+    { nombre: "Usuarios", ruta: "/dashboard/usuarios", icono: Users, roles: ["Administrador"] },
   ];
+
+  const menuInferiorCompleto = [
+    { nombre: "Configuración", ruta: "/dashboard/configuracion", icono: Sliders, roles: ["Administrador"] },
+  ];
+
+  // 2. Filtramos los menús para que solo contengan las rutas permitidas para el rol actual
+  const menuPrincipal = menuPrincipalCompleto.filter(item => item.roles.includes(rolUsuario));
+  const menuInferior = menuInferiorCompleto.filter(item => item.roles.includes(rolUsuario));
 
   return (
     <div className="flex h-screen bg-[#6A1B29] font-sans overflow-hidden">
@@ -68,6 +80,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <div className="flex-1 overflow-y-auto py-4 flex flex-col justify-between">
           <nav className="space-y-1 px-3">
+            {/* Renderizamos el menú principal ya filtrado */}
             {menuPrincipal.map((item) => {
               const activo = pathname === item.ruta;
               return (
@@ -92,6 +105,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           <div className="px-3 pb-6">
             <nav className="space-y-1 mb-6 border-t border-white/10 pt-6">
+              {/* Renderizamos el menú inferior ya filtrado. Si está vacío, no mostrará nada en esta sección */}
               {menuInferior.map((item) => (
                 <Link 
                   key={item.nombre} 
@@ -110,6 +124,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </nav>
 
             <button 
+              onClick={() => signOut({ callbackUrl: "/" })}
               className="w-full flex items-center px-3 py-3.5 text-white/70 hover:text-white hover:bg-white/5 rounded-xl transition-all group"
               title={!isSidebarOpen ? "Cerrar sesión" : ""}
             >
@@ -149,21 +164,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* Campana de Notificaciones */}
             <button className="relative p-2 text-[#6A1B29] hover:bg-gray-50 rounded-full transition-colors">
               <Bell className="w-6 h-6" />
-              {/* Opcional: El puntito de que hay notificaciones */}
-              {/* <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-600 rounded-full"></span> */}
             </button>
 
             {/* Perfil de Usuario */}
             <div className="flex items-center gap-3">
-              {/* Usamos un placeholder provisional para la foto del perfil */}
-              <img 
-                src="https://i.pravatar.cc/150?img=47" 
-                alt="Alejandra Perez" 
-                className="w-10 h-10 rounded-full object-cover border border-gray-200"
-              />
+              {session?.user?.image ? (
+                <img 
+                  src={session.user.image} 
+                  alt={nombreUsuario} 
+                  className="w-10 h-10 rounded-full object-cover border border-gray-200"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-[#6A1B29] text-white flex items-center justify-center font-bold text-sm border border-white/20 shadow-sm shrink-0 uppercase">
+                  {nombreUsuario.split(" ").map(n => n[0]).join("").substring(0, 2)}
+                </div>
+              )}
               <div className="flex flex-col">
-                <span className="text-sm font-bold text-gray-700 leading-tight">Alejandra perez</span>
-                <span className="text-xs text-gray-400 font-medium">Administradora</span>
+                <span className="text-sm font-bold text-gray-700 leading-tight capitalize">{nombreUsuario.toLowerCase()}</span>
+                <span className="text-xs text-gray-400 font-medium">{rolUsuario}</span>
               </div>
             </div>
 

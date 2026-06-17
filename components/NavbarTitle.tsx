@@ -28,7 +28,7 @@ export default function NavbarTitle() {
   }
 
   return (
-    <h1 className="text-[26px]  text-lg  font-black text-slate-800 tracking-tight transition-all duration-200">
+    <h1 className="text-[26px] font-black text-slate-800 tracking-tight transition-all duration-200">
       {titulo}
     </h1>
   );
