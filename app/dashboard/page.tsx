@@ -7,19 +7,18 @@ export default async function DashboardPage() {
   const usuarioId = session?.user?.id;
   
   // Aquí usamos "ADMIN" o "OPERADOR" dependiendo de tu lógica de sesión
-  const rol = (session?.user as any)?.role === "ADMIN" ? "ADMIN" : "OPERADOR";
+ const filtroActividades = (session?.user as any)?.role == "ADMIN"
+  ? {} 
+  : { operadorId: usuarioId };
 
-  const filtroActividades = rol === "ADMIN" 
-    ? {} 
-    : { id: usuarioId }; 
-
-  // Consultamos a la base de datos
-  const actividades = await prisma.activity.findMany({
-    where: filtroActividades,
-    orderBy: { creadoEn: 'desc' },
-    // IMPORTANTE: Si necesitas el nombre de la persona asignada, debes incluir la relación
-    // include: { asignadoA: true } 
-  });
+// CONSULTAMOS A LA BASE DE DATOS
+const actividades = await prisma.ticketActivity.findMany({
+  where: filtroActividades,
+  orderBy: { fechaCreacion: 'desc' },
+  include: {
+    operador: true, // Esto resolverá que se vea el nombre del asignado
+  },
+});
 
   return (
     <div>

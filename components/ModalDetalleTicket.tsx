@@ -6,56 +6,57 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+// 1. Mapeos de estilos dinámicos para mantener la consistencia visual de tu UI
+const mapPrioridades: Record<string, { label: string; style: string }> = {
+  CRITICA: { label: "Crítica", style: "bg-red-100 text-red-700 border-red-200" },
+  ALTA: { label: "Alta", style: "bg-orange-100 text-orange-700 border-orange-200" },
+  MEDIA: { label: "Media", style: "bg-amber-100 text-amber-700 border-amber-200" },
+  BAJA: { label: "Baja", style: "bg-slate-100 text-slate-600 border-slate-200" },
+};
+
+const mapEstados: Record<string, { label: string; style: string }> = {
+  PENDIENTE: { label: "Pendiente", style: "bg-purple-50 text-purple-600 border-purple-100" },
+  EN_PROCESO: { label: "En proceso", style: "bg-blue-50 text-blue-600 border-blue-100" },
+  EN_REVISION: { label: "En revisión", style: "bg-amber-50 text-amber-600 border-amber-100" },
+  FINALIZADA: { label: "Finalizada", style: "bg-emerald-50 text-emerald-600 border-emerald-100" },
+};
+
 interface ModalDetalleTicketProps {
   isOpen: boolean;
   onClose: () => void;
-  ticketId?: string;
+  ticket: any; // 👈 Cambiado de ticketId a ticket para recibir todo el registro dinámico
 }
 
-export default function ModalDetalleTicket({ isOpen, onClose, ticketId = "TK-001" }: ModalDetalleTicketProps) {
-  // Estado para controlar qué pestaña interna del modal se muestra
+export default function ModalDetalleTicket({ isOpen, onClose, ticket }: ModalDetalleTicketProps) {
   const [tabActiva, setTabActiva] = useState<"comentarios" | "historial">("comentarios");
   const [nuevoComentario, setNuevoComentario] = useState("");
 
-  if (!isOpen) return null;
+  // Si el modal está cerrado o no hay un ticket seleccionado aún, no renderizamos nada
+  if (!isOpen || !ticket) return null;
 
-  // Datos simulados de los comentarios con la propiedad corregida 'tipo'
-  const comentariosData = [
+  // Formateadores de fechas seguros
+  const fechaCreacionStr = ticket.fechaCreacion 
+    ? new Date(ticket.fechaCreacion).toLocaleDateString("es-MX", { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
+    : "N/A";
+
+  const fechaLimiteStr = ticket.fechaLimite 
+    ? new Date(ticket.fechaLimite).toLocaleDateString("es-MX", { day: '2-digit', month: '2-digit', year: '2-digit' })
+    : "Sin límite";
+
+  // Obtenemos los estilos dinámicos o usamos unos por defecto por seguridad
+  const prioridadInfo = mapPrioridades[ticket.prioridad] || { label: ticket.prioridad, style: "bg-slate-50 text-slate-600" };
+  const estadoInfo = mapEstados[ticket.estado] || { label: ticket.estado, style: "bg-slate-50 text-slate-600" };
+
+  // Fallback para comentarios por si aún no los incluyes en la relación de Prisma
+  const comentariosData = ticket.comentarios || [
     {
       id: 1,
-      autor: "Alejandra Rosas",
-      rol: "Administradora",
-      fecha: "16/05/2026 10:30 AM",
-      avatar: "AR",
-      mensaje: "Se reporta que no tienen acceso para entrar a la plataforma de evaluación en Proyecto Venus. Se prioriza como Alta debido a la jornada de evaluación activa.",
-      tipo: "usuario"
-    },
-    {
-      id: 2,
-      autor: "Sistema USICAMM",
-      rol: "Automatización",
-      fecha: "16/05/2026 11:05 AM",
-      avatar: "SYS",
-      mensaje: "Ticket transferido automáticamente a la célula de Soporte Técnico (Operador asignado: María López) por balanceo de carga.",
-      tipo: "sistema"
-    },
-    {
-      id: 3,
-      autor: "María López",
-      rol: "Operador - Soporte",
-      fecha: "16/05/2026 01:15 PM",
-      avatar: "ML",
-      mensaje: "Revisando logs del servidor. Se detectó una caída intermitente en la base de datos de Proyecto Venus. Escalando al especialista para el reinicio de servicios.",
-      tipo: "usuario"
-    },
-    {
-      id: 4,
-      autor: "Carlos Ramírez",
-      rol: "Operador - Especialista",
-      fecha: "16/05/2026 03:20 PM",
-      avatar: "CR",
-      mensaje: "Servicios restablecidos de forma exitosa. Se reinició el contenedor de autenticación. Monitoreando comportamiento en producción.",
-      tipo: "usuario"
+      autor: ticket.operador?.nombre || "Sistema",
+      rol: ticket.operador ? "Operador Asignado" : "Automatización",
+      fecha: fechaCreacionStr,
+      avatar: ticket.operador?.nombre?.substring(0, 2).toUpperCase() || "SYS",
+      mensaje: ticket.descripcion || "Actividad inicializada sin descripción adicional.",
+      tipo: ticket.operador ? "usuario" : "sistema"
     }
   ];
 
@@ -64,23 +65,26 @@ export default function ModalDetalleTicket({ isOpen, onClose, ticketId = "TK-001
       {/* CONTENEDOR DEL MODAL FLOTANTE */}
       <div className="bg-white w-full max-w-4xl rounded-2xl shadow-xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
         
-        {/* HEADER DEL MODAL */}
+        {/* HEADER DEL MODAL DINÁMICO */}
         <div className="p-6 pb-4 border-b border-slate-100 flex items-start justify-between">
           <div>
             <div className="flex items-center space-x-3">
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight">{ticketId}</h2>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-600 border border-red-100">
-                Alta
+              {/* Mostramos el código correlativo (TK-001) o el ID como fallback */}
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                {ticket.codigo || `TK-${String(ticket.id).padStart(3, '0')}`}
+              </h2>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${prioridadInfo.style}`}>
+                {prioridadInfo.label}
               </span>
-              <span className="px-2.5 py-0.5 rounded bg-blue-50 text-blue-600 text-[11px] font-bold border border-blue-100">
-                En revisión
+              <span className={`px-2.5 py-0.5 rounded text-[11px] font-bold border ${estadoInfo.style}`}>
+                {estadoInfo.label}
               </span>
             </div>
-            <h3 className="text-base font-bold text-slate-800 mt-2">
-              Caída de sistema en proyecto venus
+            <h3 className="text-base font-bold text-slate-800 mt-2 capitalize">
+              {ticket.titulo}
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Se reporta que no tienen acceso para entrar a la plataforma
+            <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">
+              {ticket.descripcion || "Sin descripción proporcionada."}
             </p>
           </div>
           <button 
@@ -91,23 +95,23 @@ export default function ModalDetalleTicket({ isOpen, onClose, ticketId = "TK-001
           </button>
         </div>
 
-        {/* METADATA / BADGES SUPERIORES */}
+        {/* METADATA / BADGES SUPERIORES DINÁMICOS */}
         <div className="px-6 py-3 bg-slate-50/50 border-b border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-4 text-[11px]">
           <div>
             <p className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Asignado a</p>
-            <p className="text-slate-700 font-bold mt-0.5">Alejandra Rosas</p>
+            <p className="text-slate-700 font-bold mt-0.5">{ticket.operador?.nombre || "Sin asignar"}</p>
           </div>
           <div>
             <p className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Fecha de creación</p>
-            <p className="text-slate-700 font-bold mt-0.5">16/05/26 10:30</p>
+            <p className="text-slate-700 font-bold mt-0.5">{fechaCreacionStr}</p>
           </div>
           <div>
             <p className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Fecha Límite</p>
-            <p className="text-slate-700 font-bold mt-0.5">20/05/26</p>
+            <p className="text-slate-700 font-bold mt-0.5">{fechaLimiteStr}</p>
           </div>
           <div>
             <p className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Origen</p>
-            <p className="text-slate-700 font-bold mt-0.5">Tickets</p>
+            <p className="text-slate-700 font-bold mt-0.5">{ticket.origen || "Manual"}</p>
           </div>
         </div>
 
@@ -138,22 +142,24 @@ export default function ModalDetalleTicket({ isOpen, onClose, ticketId = "TK-001
           <div className="bg-white p-3 rounded-xl border border-slate-100 flex items-center space-x-3 shadow-sm">
             <Clock className="w-4 h-4 text-slate-400" />
             <div>
-              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Tiempo Total</p>
-              <p className="text-xs font-black text-slate-800">7h 45m</p>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Estatus Base</p>
+              <p className="text-xs font-black text-slate-800 uppercase text-[10px]">{ticket.estado}</p>
             </div>
           </div>
           <div className="bg-white p-3 rounded-xl border border-slate-100 flex items-center space-x-3 shadow-sm">
             <ArrowLeftRight className="w-4 h-4 text-slate-400" />
             <div>
-              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Transferencias</p>
-              <p className="text-xs font-black text-slate-800">2</p>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Prioridad ID</p>
+              <p className="text-xs font-black text-slate-800">{ticket.prioridad}</p>
             </div>
           </div>
           <div className="bg-white p-3 rounded-xl border border-slate-100 flex items-center space-x-3 shadow-sm">
             <User className="w-4 h-4 text-slate-400" />
             <div>
               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Responsable Actual</p>
-              <p className="text-xs font-black text-slate-800">Carlos Ramírez</p>
+              <p className="text-xs font-black text-slate-800 truncate max-w-[120px]">
+                {ticket.operador?.nombre?.split(" ")[0] || "Por asignar"}
+              </p>
             </div>
           </div>
         </div>
@@ -178,14 +184,13 @@ export default function ModalDetalleTicket({ isOpen, onClose, ticketId = "TK-001
                 </button>
               </div>
 
-              {/* LISTA DE COMENTARIOS VERTICAL (PROCESO) */}
+              {/* LISTA DE COMENTARIOS VERTICAL */}
               <div className="space-y-4 relative before:absolute before:inset-y-0 before:left-4 before:w-0.5 before:bg-slate-200/60">
-                {comentariosData.map((comentario) => {
+                {comentariosData.map((comentario: any) => {
                   const esSistema = comentario.tipo === "sistema";
                   return (
                     <div key={comentario.id} className="relative flex gap-3 items-start">
                       
-                      {/* CÍRCULO / AVATAR */}
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 z-10 shadow-sm border ${
                         esSistema 
                           ? "bg-slate-100 border-slate-300 text-slate-500" 
@@ -194,7 +199,6 @@ export default function ModalDetalleTicket({ isOpen, onClose, ticketId = "TK-001
                         {comentario.avatar}
                       </div>
 
-                      {/* BURBUJA DE COMENTARIO */}
                       <div className={`flex-1 rounded-xl border p-3.5 shadow-sm ${
                         esSistema 
                           ? "bg-slate-50/80 border-slate-200/50" 
@@ -203,13 +207,7 @@ export default function ModalDetalleTicket({ isOpen, onClose, ticketId = "TK-001
                         <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
                           <div className="flex items-center space-x-2">
                             <span className="text-xs font-bold text-slate-800">{comentario.autor}</span>
-                            <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${
-                              esSistema 
-                                ? "bg-slate-200 text-slate-500" 
-                                : comentario.rol.includes("Administradora")
-                                ? "bg-red-50 text-[#6A1B29] border border-red-100"
-                                : "bg-blue-50 text-blue-600 border border-blue-100"
-                            }`}>
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider bg-slate-100 text-slate-600`}>
                               {comentario.rol}
                             </span>
                           </div>
@@ -230,68 +228,62 @@ export default function ModalDetalleTicket({ isOpen, onClose, ticketId = "TK-001
           {/* ================= PESTAÑA DE HISTORIAL ================= */}
           {tabActiva === "historial" && (
             <div className="space-y-6">
-              {/* CONTENEDOR DE LA LÍNEA DE TIEMPO HORIZONTAL */}
               <div className="bg-white rounded-xl border border-slate-200/80 p-5 shadow-sm">
                 <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-6">
                   Línea de tiempo de estatus
                 </h4>
                 
-                {/* Contenedor con scroll horizontal */}
                 <div className="overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-slate-200">
                   <div className="min-w-[850px] relative px-4">
-                    
-                    {/* LÍNEA CONECTORA DE FONDO */}
                     <div className="absolute top-[38px] left-8 right-8 h-0.5 bg-slate-200 -z-0" />
                     
-                    {/* GRILLA DE PASOS */}
                     <div className="grid grid-cols-5 gap-2 relative z-10">
                       
-                      {/* PASO 1 */}
+                      {/* PENDIENTE */}
                       <div className="text-center flex flex-col items-center">
                         <span className="text-[11px] font-bold text-slate-800 block">Pendiente</span>
-                        <span className="text-[10px] text-slate-400 font-medium block mt-0.5">16/05/2026 09:00</span>
-                        <span className="text-[10px] text-slate-500 italic block mt-0.5">Sistema</span>
-                        <div className="w-5 h-5 rounded-full bg-emerald-600 flex items-center justify-center text-white text-[10px] shadow-sm mt-3 border-4 border-white ring-1 ring-emerald-600/30">
+                        <span className="text-[10px] text-slate-400 font-medium block mt-0.5">{fechaCreacionStr}</span>
+                        <span className="text-[10px] text-slate-500 italic block mt-0.5">Origen: {ticket.origen}</span>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] shadow-sm mt-3 border-4 border-white ring-1 ring-emerald-600/30 bg-emerald-600`}>
                           ✓
                         </div>
                       </div>
 
-                      {/* PASO 2 */}
+                      {/* ASIGNADO */}
                       <div className="text-center flex flex-col items-center">
                         <span className="text-[11px] font-bold text-slate-800 block">Asignado</span>
-                        <span className="text-[10px] text-slate-400 font-medium block mt-0.5">16/05/2026 09:00</span>
-                        <span className="text-[10px] text-slate-500 font-medium block mt-0.5">Sistema asignó Juan Pérez</span>
-                        <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-white text-[10px] shadow-sm mt-3 border-4 border-white ring-1 ring-blue-600/30">
-                          •
+                        <span className="text-[10px] text-slate-400 font-medium block mt-0.5">{ticket.operador ? fechaCreacionStr : "—"}</span>
+                        <span className="text-[10px] text-slate-500 font-medium block mt-0.5 truncate max-w-[150px]">
+                          {ticket.operador ? `Asignado a ${ticket.operador.nombre}` : "Esperando operador"}
+                        </span>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] shadow-sm mt-3 border-4 border-white ${ticket.operador ? 'bg-emerald-600 ring-emerald-600/30' : 'bg-slate-300 ring-slate-300/30'}`}>
+                          {ticket.operador ? "✓" : "•"}
                         </div>
                       </div>
 
-                      {/* PASO 3 */}
+                      {/* EN PROCESO */}
                       <div className="text-center flex flex-col items-center">
                         <span className="text-[11px] font-bold text-slate-800 block">En proceso</span>
-                        <span className="text-[10px] text-slate-400 font-medium block mt-0.5">16/05/2026 09:15</span>
-                        <span className="text-[10px] text-slate-500 font-medium block mt-0.5">Juan Pérez</span>
-                        <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-white text-[10px] shadow-sm mt-3 border-4 border-white ring-1 ring-blue-600/30">
+                        <span className="text-[10px] text-slate-400 font-medium block mt-0.5">—</span>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] shadow-sm mt-3 border-4 border-white ${ticket.estado === 'EN_PROCESO' ? 'bg-blue-600 animate-pulse ring-blue-600/30' : 'bg-slate-300'}`}>
                           •
                         </div>
                       </div>
 
-                      {/* PASO 4 */}
+                      {/* EN REVISION */}
                       <div className="text-center flex flex-col items-center">
-                        <span className="text-[11px] font-bold text-slate-800 block">Transferido</span>
-                        <span className="text-[10px] text-slate-400 font-medium block mt-0.5">16/05/2026 11:15</span>
-                        <span className="text-[10px] text-slate-600 font-bold block mt-0.5">Juan Pérez → María López</span>
-                        <div className="w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center text-white text-[10px] shadow-sm mt-3 border-4 border-white ring-1 ring-amber-500/30">
-                          ◆
+                        <span className="text-[11px] font-bold text-slate-800 block">En revisión</span>
+                        <span className="text-[10px] text-slate-400 font-medium block mt-0.5">—</span>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] shadow-sm mt-3 border-4 border-white ${ticket.estado === 'EN_REVISION' ? 'bg-amber-500 animate-pulse ring-amber-500/30' : 'bg-slate-300'}`}>
+                          •
                         </div>
                       </div>
 
-                      {/* PASO 5 */}
+                      {/* FINALIZADA */}
                       <div className="text-center flex flex-col items-center">
-                        <span className="text-[11px] font-black text-[#6A1B29] block">En revisión</span>
-                        <span className="text-[10px] text-slate-400 font-semibold block mt-0.5">16/05/2026 16:45</span>
-                        <span className="text-[10px] text-slate-700 font-bold block mt-0.5">Carlos Ramírez</span>
-                        <div className="w-5 h-5 rounded-full bg-[#6A1B29] flex items-center justify-center text-white text-[10px] shadow-md mt-3 border-4 border-white ring-2 ring-[#6A1B29]/40 animate-pulse">
+                        <span className="text-[11px] font-bold text-slate-800 block">Finalizada</span>
+                        <span className="text-[10px] text-slate-400 font-medium block mt-0.5">—</span>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] shadow-sm mt-3 border-4 border-white ${ticket.estado === 'FINALIZADA' ? 'bg-emerald-600 ring-emerald-600/30' : 'bg-slate-300'}`}>
                           •
                         </div>
                       </div>
@@ -307,9 +299,9 @@ export default function ModalDetalleTicket({ isOpen, onClose, ticketId = "TK-001
 
         {/* FOOTER DEL MODAL */}
         <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
-          <Link href="/dashboard/ticket_report">
+          <Link href={`/dashboard/ticket_report?id=${ticket.id}`}>
             <button className="bg-[#6A1B29] hover:bg-[#54141F] text-white font-bold text-xs px-6 py-2.5 rounded-lg shadow-sm transition-colors cursor-pointer">
-              Detalles
+              Ver reporte completo
             </button>
           </Link>
         </div>

@@ -5,7 +5,7 @@ CREATE TYPE "Rol" AS ENUM ('ADMIN', 'OPERADOR');
 CREATE TYPE "EstadoTicket" AS ENUM ('PENDIENTE', 'ASIGNADO', 'EN_PROCESO', 'EN_REVISION', 'FINALIZADO');
 
 -- CreateEnum
-CREATE TYPE "Prioridad" AS ENUM ('BAJA', 'MEDIA', 'ALTA', 'CRITICA');
+CREATE TYPE "Prioridad" AS ENUM ('CRITICA', 'ALTA', 'MEDIA', 'BAJA');
 
 -- CreateTable
 CREATE TABLE "User" (
@@ -22,31 +22,21 @@ CREATE TABLE "User" (
 );
 
 -- CreateTable
-CREATE TABLE "Ticket" (
-    "id" TEXT NOT NULL,
-    "folio" TEXT NOT NULL,
+CREATE TABLE "ticket_activity" (
+    "id" SERIAL NOT NULL,
+    "codigo" TEXT NOT NULL,
     "titulo" TEXT NOT NULL,
     "descripcion" TEXT NOT NULL,
+    "prioridad" "Prioridad" NOT NULL,
     "estado" "EstadoTicket" NOT NULL DEFAULT 'PENDIENTE',
-    "prioridad" "Prioridad" NOT NULL DEFAULT 'MEDIA',
-    "fechaLimite" TIMESTAMP(3),
-    "creadoEn" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "actualizadoEn" TIMESTAMP(3) NOT NULL,
-    "asignadoAId" TEXT,
+    "origen" TEXT NOT NULL DEFAULT 'Tickets',
+    "fechaCreacion" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "fechaLimite" TIMESTAMP(3) NOT NULL,
+    "operadorId" TEXT NOT NULL,
+    "tiempoResolucion" TEXT,
+    "numTransferencias" INTEGER NOT NULL DEFAULT 0,
 
-    CONSTRAINT "Ticket_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Activity" (
-    "id" TEXT NOT NULL,
-    "titulo" TEXT NOT NULL,
-    "descripcion" TEXT,
-    "completada" BOOLEAN NOT NULL DEFAULT false,
-    "creadoEn" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "ticketId" TEXT NOT NULL,
-
-    CONSTRAINT "Activity_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "ticket_activity_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -55,7 +45,7 @@ CREATE TABLE "Comment" (
     "contenido" TEXT NOT NULL,
     "creadoEn" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "autorId" TEXT NOT NULL,
-    "ticketId" TEXT NOT NULL,
+    "ticketActivityId" INTEGER NOT NULL,
 
     CONSTRAINT "Comment_pkey" PRIMARY KEY ("id")
 );
@@ -64,8 +54,9 @@ CREATE TABLE "Comment" (
 CREATE TABLE "Transfer" (
     "id" TEXT NOT NULL,
     "motivo" TEXT NOT NULL,
-    "transferidoEn" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "ticketId" TEXT NOT NULL,
+    "fechaInicio" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "fechaFin" TIMESTAMP(3),
+    "ticketActivityId" INTEGER NOT NULL,
     "origenUsuarioId" TEXT,
     "destinoUsuarioId" TEXT NOT NULL,
 
@@ -79,7 +70,7 @@ CREATE TABLE "Evidence" (
     "nombreArchivo" TEXT NOT NULL,
     "tipoArchivo" TEXT NOT NULL,
     "creadoEn" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "ticketId" TEXT NOT NULL,
+    "ticketActivityId" INTEGER NOT NULL,
 
     CONSTRAINT "Evidence_pkey" PRIMARY KEY ("id")
 );
@@ -91,7 +82,7 @@ CREATE TABLE "History" (
     "valorAnterior" TEXT,
     "valorNuevo" TEXT,
     "creadoEn" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "ticketId" TEXT NOT NULL,
+    "ticketActivityId" INTEGER NOT NULL,
     "usuarioId" TEXT NOT NULL,
 
     CONSTRAINT "History_pkey" PRIMARY KEY ("id")
@@ -104,22 +95,19 @@ CREATE UNIQUE INDEX "User_correo_key" ON "User"("correo");
 CREATE UNIQUE INDEX "User_telefono_key" ON "User"("telefono");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Ticket_folio_key" ON "Ticket"("folio");
+CREATE UNIQUE INDEX "ticket_activity_codigo_key" ON "ticket_activity"("codigo");
 
 -- AddForeignKey
-ALTER TABLE "Ticket" ADD CONSTRAINT "Ticket_asignadoAId_fkey" FOREIGN KEY ("asignadoAId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Activity" ADD CONSTRAINT "Activity_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES "Ticket"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "ticket_activity" ADD CONSTRAINT "ticket_activity_operadorId_fkey" FOREIGN KEY ("operadorId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Comment" ADD CONSTRAINT "Comment_autorId_fkey" FOREIGN KEY ("autorId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Comment" ADD CONSTRAINT "Comment_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES "Ticket"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Comment" ADD CONSTRAINT "Comment_ticketActivityId_fkey" FOREIGN KEY ("ticketActivityId") REFERENCES "ticket_activity"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Transfer" ADD CONSTRAINT "Transfer_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES "Ticket"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Transfer" ADD CONSTRAINT "Transfer_ticketActivityId_fkey" FOREIGN KEY ("ticketActivityId") REFERENCES "ticket_activity"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Transfer" ADD CONSTRAINT "Transfer_origenUsuarioId_fkey" FOREIGN KEY ("origenUsuarioId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -128,10 +116,10 @@ ALTER TABLE "Transfer" ADD CONSTRAINT "Transfer_origenUsuarioId_fkey" FOREIGN KE
 ALTER TABLE "Transfer" ADD CONSTRAINT "Transfer_destinoUsuarioId_fkey" FOREIGN KEY ("destinoUsuarioId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Evidence" ADD CONSTRAINT "Evidence_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES "Ticket"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Evidence" ADD CONSTRAINT "Evidence_ticketActivityId_fkey" FOREIGN KEY ("ticketActivityId") REFERENCES "ticket_activity"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "History" ADD CONSTRAINT "History_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES "Ticket"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "History" ADD CONSTRAINT "History_ticketActivityId_fkey" FOREIGN KEY ("ticketActivityId") REFERENCES "ticket_activity"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "History" ADD CONSTRAINT "History_usuarioId_fkey" FOREIGN KEY ("usuarioId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

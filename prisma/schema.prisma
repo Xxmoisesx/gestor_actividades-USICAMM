@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -28,10 +28,10 @@ enum EstadoTicket {
 }
 
 enum Prioridad {
-  BAJA
-  MEDIA
-  ALTA
   CRITICA
+  ALTA
+  MEDIA
+  BAJA
 }
 
 // ----------------------------------------------------------------------
@@ -39,52 +39,51 @@ enum Prioridad {
 // ----------------------------------------------------------------------
 
 model User {
-  id            String    @id @default(uuid())
+  id            String   @id @default(uuid())
   nombre        String
-  correo        String?   @unique
-  telefono      String?   @unique
-  contrasena    String?   
-  rol           Rol       @default(OPERADOR)
-  creadoEn      DateTime  @default(now())
-  actualizadoEn DateTime  @updatedAt
+  correo        String?  @unique
+  telefono      String?  @unique
+  contrasena    String?  
+  rol           Rol      @default(OPERADOR)
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
 
-  ticketsAsignados        Ticket[]   @relation("TicketsAsignados")
+  // Relaciones actualizadas hacia la tabla consolidada
+  ticketActivities        TicketActivity[]  @relation("OperadorAsignado")
   comentarios             Comment[]
-  transferenciasEnviadas  Transfer[] @relation("TransferenciaOrigen")
-  transferenciasRecibidas Transfer[] @relation("TransferenciaDestino")
-  cambiosHistorial        History[]  @relation("HistorialUsuario")
+  transferenciasEnviadas  Transfer[]        @relation("TransferenciaOrigen")
+  transferenciasRecibidas Transfer[]        @relation("TransferenciaDestino")
+  cambiosHistorial        History[]         @relation("HistorialUsuario")
 }
 
-model Ticket {
-  id            String       @id @default(uuid())
-  folio         String       @unique 
-  titulo        String
-  descripcion   String       @db.Text
-  estado        EstadoTicket @default(PENDIENTE)
-  prioridad     Prioridad    @default(MEDIA)
-  fechaLimite   DateTime?    
-  creadoEn      DateTime     @default(now())
-  actualizadoEn DateTime     @updatedAt
-
-  asignadoAId   String?
-  asignadoA     User?        @relation("TicketsAsignados", fields: [asignadoAId], references: [id])
+// 1. TABLA CONSOLIDADA: ticket_activity
+model TicketActivity {
+  id                Int          @id @default(autoincrement())
+  codigo            String       @unique // Para códigos como "TK-001"
+  titulo            String
+  descripcion       String       @db.Text
+  prioridad         Prioridad
+  estado            EstadoTicket @default(PENDIENTE)
+  origen            String       @default("Tickets") // "Tickets", "Manual", etc.
   
-  actividades   Activity[]
-  comentarios   Comment[]
-  transferencias Transfer[]
-  evidencias    Evidence[]
-  historiales   History[]
-}
-
-model Activity {
-  id          String   @id @default(uuid())
-  titulo      String
-  descripcion String?  @db.Text
-  completada  Boolean  @default(false)
-  creadoEn    DateTime @default(now())
+  fechaCreacion     DateTime     @default(now())
+  fechaLimite       DateTime
   
-  ticketId    String
-  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  // Relación con el Operador asignado (Responsable Actual)
+  operadorId        String
+  operador          User         @relation("OperadorAsignado", fields: [operadorId], references: [id])
+
+  // Métricas del Historial visibles en tus tarjetas de KPI
+  tiempoResolucion  String?      // Ej: "7h 45m"
+  numTransferencias Int          @default(0) // Contador de cambios de responsable
+
+  // Relaciones corregidas con sus tipos inversos
+  comentarios       Comment[]
+  transferencias    Transfer[]
+  evidencias        Evidence[]
+  historialEventos  History[]
+
+  @@map("ticket_activity")
 }
 
 model Comment {
@@ -94,20 +93,23 @@ model Comment {
 
   autorId   String
   autor     User     @relation(fields: [autorId], references: [id])
-  ticketId  String
-  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  
+  // Relación corregida apuntando a TicketActivity (Int)
+  ticketActivityId Int
+  ticketActivity   TicketActivity @relation(fields: [ticketActivityId], references: [id], onDelete: Cascade)
 }
 
 model Transfer {
-  id               String    @id @default(uuid())
-  motivo           String    @db.Text
+  id          String    @id @default(uuid())
+  motivo      String    @db.Text
   
   // ⏱️ Control de tiempos para la auditoría de retrasos
-  fechaInicio      DateTime  @default(now()) // Cuando el nuevo operador toma el ticket
-  fechaFin         DateTime?                 // Cuando lo transfiere o lo finaliza
+  fechaInicio DateTime  @default(now()) 
+  fechaFin    DateTime?           
 
-  ticketId         String
-  ticket           Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  // Relación corregida apuntando a TicketActivity (Int)
+  ticketActivityId Int
+  ticketActivity   TicketActivity @relation(fields: [ticketActivityId], references: [id], onDelete: Cascade)
   
   origenUsuarioId  String?
   origenUsuario    User?     @relation("TransferenciaOrigen", fields: [origenUsuarioId], references: [id])
@@ -123,8 +125,9 @@ model Evidence {
   tipoArchivo   String   
   creadoEn      DateTime @default(now())
 
-  ticketId      String
-  ticket        Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  // Relación corregida apuntando a TicketActivity (Int)
+  ticketActivityId Int
+  ticketActivity   TicketActivity @relation(fields: [ticketActivityId], references: [id], onDelete: Cascade)
 }
 
 model History {
@@ -134,8 +137,10 @@ model History {
   valorNuevo    String?
   creadoEn      DateTime @default(now())
 
-  ticketId      String
-  ticket        Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  // Relación corregida apuntando a TicketActivity (Int)
+  ticketActivityId Int
+  ticketActivity   TicketActivity @relation(fields: [ticketActivityId], references: [id], onDelete: Cascade)
+  
   usuarioId     String
   usuario       User     @relation("HistorialUsuario", fields: [usuarioId], references: [id])
 }
