@@ -7,9 +7,18 @@ import { redirect } from "next/navigation";
 export async function createActivity(formData: FormData) {
   const titulo = formData.get("titulo") as string;
   const descripcion = formData.get("descripcion") as string;
-  const prioridad = formData.get("prioridad") as "CRITICA" | "ALTA" | "MEDIA" | "BAJA";
+  const prioridadInput = formData.get("prioridad") as "CRITICA" | "ALTA" | "MEDIA" | "BAJA";
   const operadorId = formData.get("asignarA") as string;
   const fechaLimite = new Date(formData.get("fechaLimite") as string);
+
+  const mapPrioridadNombre = {
+    CRITICA: "Crítica",
+    ALTA: "Alta",
+    MEDIA: "Media",
+    BAJA: "Baja",
+  } as const;
+
+  const prioridadNombre = mapPrioridadNombre[prioridadInput];
 
   try {
     // 1. Generar el código secuencial único (Ej: TK-001, TK-002...)
@@ -22,7 +31,9 @@ export async function createActivity(formData: FormData) {
         codigo: nuevoCodigo,
         titulo,
         descripcion,
-        prioridad,
+        prioridad: {
+          connect: { nombre: prioridadNombre }
+        },
         fechaLimite,
         estado: "PENDIENTE", // Se alinea automáticamente con tu Enum EstadoTicket
         origen: "Manual",    // Al ser creado desde este formulario, lo marcamos como Manual

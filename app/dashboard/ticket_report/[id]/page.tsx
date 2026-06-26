@@ -5,12 +5,13 @@ import { Rol } from "@prisma/client";
 import ModalDetalleTicket from "@/components/ModalDetalleTicket";
 
 interface Props {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export default async function DetalleTicketPage({ params }: Props) {
+  const { id } = await params;
   // Convertir el ID de la URL a número entero (PostgreSQL/MySQL Int)
-  const ticketId = parseInt(params.id);
+  const ticketId = parseInt(id);
   if (isNaN(ticketId)) notFound();
 
   // 1. Consulta real a la Base de Datos con todas las relaciones de tu esquema
