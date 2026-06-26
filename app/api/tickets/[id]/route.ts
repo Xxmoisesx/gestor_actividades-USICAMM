@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 interface Params {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export async function GET(_request: Request, { params }: Params) {
-  const ticketId = Number(params.id);
+  const { id } = await params;
+  const ticketId = Number(id);
   if (Number.isNaN(ticketId)) {
     return NextResponse.json({ error: "ID de ticket inválido." }, { status: 400 });
   }
