@@ -27,13 +27,6 @@ enum EstadoTicket {
   FINALIZADO
 }
 
-enum Prioridad {
-  CRITICA
-  ALTA
-  MEDIA
-  BAJA
-}
-
 // ----------------------------------------------------------------------
 // MODELOS
 // ----------------------------------------------------------------------
@@ -48,12 +41,22 @@ model User {
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
 
-  // Relaciones actualizadas hacia la tabla consolidada
+  // Relaciones hacia la tabla consolidada
   ticketActivities        TicketActivity[]  @relation("OperadorAsignado")
   comentarios             Comment[]
   transferenciasEnviadas  Transfer[]        @relation("TransferenciaOrigen")
   transferenciasRecibidas Transfer[]        @relation("TransferenciaDestino")
   cambiosHistorial        History[]         @relation("HistorialUsuario")
+}
+
+// 🆕 NUEVO MODELO PARA PRIORIDADES (Como Llave Foránea)
+model Priority {
+  id               Int              @id @default(autoincrement())
+  nombre           String           @unique // "Crítica", "Alta", "Media", "Baja"
+  colorText        String           // "text-red-600"
+  colorBg          String           // "bg-red-50"
+  colorBorder      String           // "border-red-100"
+  ticketActivities TicketActivity[] // Relación inversa con los tickets
 }
 
 // 1. TABLA CONSOLIDADA: ticket_activity
@@ -62,13 +65,16 @@ model TicketActivity {
   codigo            String       @unique // Para códigos como "TK-001"
   titulo            String
   descripcion       String       @db.Text
-  prioridad         Prioridad
   estado            EstadoTicket @default(PENDIENTE)
   origen            String       @default("Tickets") // "Tickets", "Manual", etc.
   
   fechaCreacion     DateTime     @default(now())
   fechaLimite       DateTime
   
+  // 🆕 Relación corregida con Priority usando Llave Foránea
+  prioridadId       Int
+  prioridad         Priority     @relation(fields: [prioridadId], references: [id])
+
   // Relación con el Operador asignado (Responsable Actual)
   operadorId        String
   operador          User         @relation("OperadorAsignado", fields: [operadorId], references: [id])
@@ -77,7 +83,7 @@ model TicketActivity {
   tiempoResolucion  String?      // Ej: "7h 45m"
   numTransferencias Int          @default(0) // Contador de cambios de responsable
 
-  // Relaciones corregidas con sus tipos inversos
+  // Relaciones con sus tipos inversos
   comentarios       Comment[]
   transferencias    Transfer[]
   evidencias        Evidence[]
@@ -87,14 +93,13 @@ model TicketActivity {
 }
 
 model Comment {
-  id        String   @id @default(uuid())
-  contenido String   @db.Text
-  creadoEn  DateTime @default(now())
+  id                String         @id @default(uuid())
+  contenido         String         @db.Text
+  fechaCreacion     DateTime       @default(now())
 
-  autorId   String
-  autor     User     @relation(fields: [autorId], references: [id])
+  usuarioId         String
+  usuario           User           @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   
-  // Relación corregida apuntando a TicketActivity (Int)
   ticketActivityId Int
   ticketActivity   TicketActivity @relation(fields: [ticketActivityId], references: [id], onDelete: Cascade)
 }
@@ -107,7 +112,7 @@ model Transfer {
   fechaInicio DateTime  @default(now()) 
   fechaFin    DateTime?           
 
-  // Relación corregida apuntando a TicketActivity (Int)
+  // Relación apuntando a TicketActivity (Int)
   ticketActivityId Int
   ticketActivity   TicketActivity @relation(fields: [ticketActivityId], references: [id], onDelete: Cascade)
   
@@ -125,22 +130,22 @@ model Evidence {
   tipoArchivo   String   
   creadoEn      DateTime @default(now())
 
-  // Relación corregida apuntando a TicketActivity (Int)
+  // Relación apuntando a TicketActivity (Int)
   ticketActivityId Int
   ticketActivity   TicketActivity @relation(fields: [ticketActivityId], references: [id], onDelete: Cascade)
 }
 
 model History {
-  id            String   @id @default(uuid())
-  accion        String   
-  valorAnterior String?
-  valorNuevo    String?
-  creadoEn      DateTime @default(now())
+  id               String   @id @default(uuid())
+  accion           String   
+  valorAnterior    String?
+  valorNuevo       String?
+  creadoEn         DateTime @default(now())
 
-  // Relación corregida apuntando a TicketActivity (Int)
+  // Relación apuntando a TicketActivity (Int)
   ticketActivityId Int
   ticketActivity   TicketActivity @relation(fields: [ticketActivityId], references: [id], onDelete: Cascade)
   
-  usuarioId     String
-  usuario       User     @relation("HistorialUsuario", fields: [usuarioId], references: [id])
+  usuarioId        String
+  usuario          User     @relation("HistorialUsuario", fields: [usuarioId], references: [id])
 }

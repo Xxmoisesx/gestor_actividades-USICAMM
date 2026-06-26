@@ -1,3 +1,4 @@
+// auth.config.ts
 import type { NextAuthConfig } from "next-auth";
 
 export const authConfig = {
@@ -7,13 +8,15 @@ export const authConfig = {
   callbacks: {
     jwt({ token, user }) {
       if (user) {
+        token.id = user.id;               // 👈 ¡FALTABA ESTO! Guardamos el ID en el JWT
         token.role = (user as any).role;
       }
       return token;
     },
     session({ session, token }) {
       if (session.user) {
-        (session.user as any).role = token.role;
+        session.user.id = token.id as string; // 👈 ¡FALTABA ESTO! Pasamos el ID al frontend
+        (session.user as any).role = token.role as string;
       }
       return session;
     },

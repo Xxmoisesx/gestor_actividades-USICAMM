@@ -3,31 +3,37 @@
 import React, { useState, useEffect } from "react";
 import { 
   Search, Download, Plus, Filter, 
-  ClipboardList, FileWarning, Users, Clock, Timer,
-  Eye, Edit, MoreVertical, CheckCircle, ArrowRightLeft, UserPlus,
-  Trash2, X // 👈 Corregido: Importamos el icono X que faltaba
+  Eye, ArrowRightLeft, Trash2, X 
 } from 'lucide-react';
 import Link from 'next/link';
-import ModalDetalleTicket from "./ModalDetalleTicket"; 
+import ModalDetalleTicket from "./ModalDetalleTicket";
+import { transferirTicketAction } from "@/app/dashboard/ticket_report/actions/actions";
+
+
+interface Operador {
+  id: string | number; // 👈 Cambiado a string | number para evitar conflictos si usas UUIDs o CUIDs en la DB
+  nombre: string;
+  rolAsignado?: string;
+}
 
 interface AdministradorActividadesProps { 
   rol: string; 
   ticketsBaseDatos?: any[]; 
+  operadores?: Operador[]; // Catálogo de operadores reales desde la base de datos
 }
 
 export default function AdministradorActividades({ 
   rol, 
-  ticketsBaseDatos = [] 
+  ticketsBaseDatos = [],
+  operadores = [] // Valor por defecto para mitigar errores si viene vacío
 }: AdministradorActividadesProps) {
   
   // ==========================================
   // ESTADOS PRINCIPALES Y REACTIVIDAD
   // ==========================================
-  // Convertimos los tickets en estado para que la edición/transferencia sea funcional en tiempo real
   const [tickets, setTickets] = useState<any[]>(ticketsBaseDatos);
   const [tabActiva, setTabActiva] = useState<"TODAS" | "SIN_ASIGNAR" | "CRITICAS" | "VENCIDAS" | "TRANSFERIDAS">("TODAS");
   
-  // Sincronizar el estado local si las props cambian externamente
   useEffect(() => {
     setTickets(ticketsBaseDatos);
   }, [ticketsBaseDatos]);
@@ -39,57 +45,74 @@ export default function AdministradorActividades({
   const [ticketSeleccionado, setTicketSeleccionado] = useState<any>(null);
 
   // ==========================================
-  // 👈 Corregido: ESTADOS Y LÓGICA DE TRANSFERENCIA (Movidos dentro del componente)
+  // ESTADOS Y LÓGICA DE TRANSFERENCIA (CONECTADO AL BACKEND)
   // ==========================================
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false); 
-  const [ticketATransferir, setTicketATransferir] = useState<any>(null); // Guarda el ticket específico a editar
-  const [selectedResponsable, setSelectedResponsable] = useState("");
+  const [ticketATransferir, setTicketATransferir] = useState<any>(null); 
+  const [selectedResponsableId, setSelectedResponsableId] = useState<string>(""); 
   const [motivoTransferencia, setMotivoTransferencia] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false); // Controla el estado de carga del botón
 
-  // Normalizamos la validación del rol para evitar problemas de mayúsculas/minúsculas
   const esAdmin = rol?.toUpperCase() === "ADMIN";
 
-  // Función interna para abrir el detalle al hacer clic en el ojo
   const abrirDetalle = (ticket: any) => {
     setTicketSeleccionado(ticket);
     setModalOpen(true);
   };
 
-  // Función para preparar y abrir el modal de transferencia
   const abrirModalTransferencia = (ticket: any) => {
     setTicketATransferir(ticket);
+    setSelectedResponsableId(""); 
     setIsTransferModalOpen(true);
   };
 
-  // Manejador del envío del formulario de transferencia
-  const handleTransferirSubmit = (e: React.FormEvent) => {
+  // Manejador del envío del formulario (Conexión asíncrona)
+  const handleTransferirSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ticketATransferir) return;
+    if (!ticketATransferir || !selectedResponsableId) return;
 
-    // LÓGICA FUNCIONAL: Actualizamos el estado local de los tickets
-    setTickets(prevTickets => 
-      prevTickets.map(t => {
-        if (t.id === ticketATransferir.id) {
-          return {
-            ...t,
-            origen: "TRANSFERIDO", // Lo marca como transferido para que entre en el filtro
-            operador: {
-              ...t.operador,
-              nombre: selectedResponsable // Asigna el nuevo responsable
+    setIsSubmitting(true);
+
+    try {
+      const res = await transferirTicketAction({
+        ticketId: ticketATransferir.id,
+        nuevoResponsableId: selectedResponsableId,
+        motivo: motivoTransferencia,
+      });
+
+      if (res.success) {
+        const nuevoOperadorObj = operadores.find(op => String(op.id) === selectedResponsableId);
+
+        setTickets(prevTickets => 
+          prevTickets.map(t => {
+            if (t.id === ticketATransferir.id) {
+              return {
+                ...t,
+                origen: "TRANSFERIDO", 
+                estado: "EN_PROCESO", // Ajustado al flujo lógico transaccional
+                operador: {
+                  ...t.operador,
+                  id: selectedResponsableId,
+                  nombre: nuevoOperadorObj ? nuevoOperadorObj.nombre : "Nuevo Operador"
+                }
+              };
             }
-          };
-        }
-        return t;
-      })
-    );
+            return t;
+          })
+        );
 
-    console.log(`Ticket #${ticketATransferir.id} transferido a:`, selectedResponsable, "Motivo:", motivoTransferencia);
-    
-    // Resetear formulario y cerrar modal
-    setSelectedResponsable("");
-    setMotivoTransferencia("");
-    setTicketATransferir(null);
-    setIsTransferModalOpen(false);
+        // Resetear variables de control
+        setSelectedResponsableId("");
+        setMotivoTransferencia("");
+        setTicketATransferir(null);
+        setIsTransferModalOpen(false);
+      }
+    } catch (error) {
+      console.error("Error al procesar la transferencia en el cliente:", error);
+      alert("Hubo un error al transferir el ticket. Por favor, inténtalo de nuevo.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // ==========================================
@@ -182,7 +205,6 @@ export default function AdministradorActividades({
           </button>
         </div>
         
-        {/* BOTÓN REGISTRO (SOLO ADMIN) */}
         <div className="flex items-center gap-3">
           {esAdmin && (
             <Link href="/dashboard/crear">  
@@ -217,7 +239,6 @@ export default function AdministradorActividades({
       {/* 4. CONTENIDO PRINCIPAL: TABLA Y PANELES LATERALES */}
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
         
-        {/* TABLA PRINCIPAL */}
         <div className={`bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col ${esAdmin ? "xl:col-span-3" : "xl:col-span-4"}`}>
           <div className="overflow-x-auto flex-1">
             <table className="w-full text-left border-collapse text-xs">
@@ -237,15 +258,12 @@ export default function AdministradorActividades({
                 {ticketsFiltrados.map((ticket) => (
                   <tr key={ticket.id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="p-4"><input type="checkbox" className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" /></td>
-                    
                     <td className="p-4 font-bold text-slate-500">
                       {ticket.codigo || ticket.folio || `TK-${String(ticket.id)}`}
                     </td>
-                    
                     <td className="p-4 font-medium text-slate-900 max-w-xs truncate" title={ticket.titulo}>
                       {ticket.titulo}
                     </td>
-                    
                     <td className="p-4">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
                         ticket.prioridad === 'CRITICA' || ticket.prioridad === 'ALTA' ? 'text-red-700 bg-red-50 border border-red-100' :
@@ -255,7 +273,6 @@ export default function AdministradorActividades({
                         {ticket.prioridad}
                       </span>
                     </td>
-                    
                     <td className="p-4">
                       <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
                         ticket.estado === 'FINALIZADO' ? 'text-emerald-700 bg-emerald-50' :
@@ -266,7 +283,6 @@ export default function AdministradorActividades({
                         {ticket.estado}
                       </span>
                     </td>
-                    
                     <td className="px-6 py-4 text-xs text-slate-600">
                       {ticket.operador?.nombre ? (
                         <div className="flex items-center gap-2">
@@ -278,7 +294,6 @@ export default function AdministradorActividades({
                         <span className="text-slate-400 italic">Sin asignar</span>
                       )}
                     </td>
-
                     <td className="p-4 text-xs text-slate-600">
                       {ticket.fechaCreacion ? (
                         new Date(ticket.fechaCreacion).toLocaleDateString("es-MX", {
@@ -290,13 +305,10 @@ export default function AdministradorActividades({
                         <span className="text-slate-400">-</span>
                       )}
                     </td>
-                    
-                    {/* ACCIONES DE FILA REESCRITAS POR ROLES */}
                     <td className="p-4">
                       <div className="flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                        
-                        {/* 1. OJO DE DETALLE (Común para todos los roles) */}
                         <button 
+                          type="button"
                           onClick={() => abrirDetalle(ticket)}
                           className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-50 rounded-md bg-white shadow-sm border border-slate-200/80 transition-all" 
                           title="Ver detalle de la actividad"
@@ -304,9 +316,9 @@ export default function AdministradorActividades({
                           <Eye className="w-3.5 h-3.5" />
                         </button>
 
-                        {/* 2. TRANSFERIR TICKET */}
                         <button 
-                          onClick={() => abrirModalTransferencia(ticket)} // 👈 Corregido: Enviamos el contexto del ticket
+                          type="button"
+                          onClick={() => abrirModalTransferencia(ticket)}
                           className="inline-flex items-center space-x-2 px-3 py-1.5 border border-amber-600/40 text-amber-800 hover:bg-amber-50 text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm bg-white"
                           title="Transferir actividad a otro operador"
                         >
@@ -314,9 +326,9 @@ export default function AdministradorActividades({
                           <span>Transferir</span>
                         </button>
 
-                        {/* 3. ICONO DE BASURA / ELIMINAR (Exclusivo de Administrador) */}
                         {esAdmin && (
                           <button 
+                            type="button"
                             onClick={() => console.log("Eliminar ticket:", ticket.id)}
                             className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md bg-white shadow-sm border border-slate-200/80 transition-all" 
                             title="Eliminar actividad"
@@ -324,7 +336,6 @@ export default function AdministradorActividades({
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         )}
-
                       </div>
                     </td>
                   </tr>
@@ -341,7 +352,6 @@ export default function AdministradorActividades({
             </table>
           </div>
           
-          {/* RECUENTO PIE DE TABLA */}
           <div className="p-4 border-t border-slate-200 flex items-center justify-between bg-slate-50/50 rounded-b-xl">
             <span className="text-xs text-slate-500">
               Mostrando {ticketsFiltrados.length > 0 ? '1' : '0'} a {ticketsFiltrados.length} de {ticketsFiltrados.length} actividades
@@ -354,7 +364,7 @@ export default function AdministradorActividades({
           </div>
         </div>
 
-        {/* PANELES LATERALES: CARGA DE TRABAJO (SOLO ADMIN) */}
+        {/* PANELES LATERALES (SOLO ADMIN) */}
         {esAdmin && (
           <div className="xl:col-span-1 space-y-6">
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
@@ -379,16 +389,14 @@ export default function AdministradorActividades({
                           style={{ width: `${Math.min(op.porcentaje, 100)}%` }}
                         ></div>
                       </div>
-                      <p className="text-[10px] text-slate-400 font-medium">{op.actividades} actividades asignadas</p>
+                      <p className="text-[10px] text-slate-400 font-medium">{op.actividades} actividades assigned</p>
                     </div>
                   </div>
                 ))}
                 
                 {cargaOperadores.length === 0 && (
                   <div className="text-center py-6 bg-slate-50/50 border border-dashed border-slate-200 rounded-xl">
-                    <p className="text-xs text-slate-400 italic">
-                      Sin operadores con actividades asignadas.
-                    </p>
+                    <p className="text-xs text-slate-400 italic">Sin operadores con actividades asignadas.</p>
                   </div>
                 )}
               </div>
@@ -397,7 +405,6 @@ export default function AdministradorActividades({
         )}
       </div>
 
-      {/* VENTANA FLOTANTE: DETALLE DE TICKET SELECCIONADO */}
       <ModalDetalleTicket 
         isOpen={modalOpen} 
         onClose={() => setModalOpen(false)} 
@@ -409,7 +416,6 @@ export default function AdministradorActividades({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in">
           <div className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-200 overflow-hidden flex flex-col">
             
-            {/* Cabecera del Modal */}
             <div className="p-5 border-b border-slate-100 flex items-center justify-between">
               <div className="flex items-center space-x-2 text-slate-800">
                 <ArrowRightLeft className="w-4 h-4 text-[#6A1B29]" />
@@ -418,18 +424,18 @@ export default function AdministradorActividades({
                 </h3>
               </div>
               <button 
-                onClick={() => setIsTransferModalOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                type="button"
+                onClick={() => !isSubmitting && setIsTransferModalOpen(false)}
+                disabled={isSubmitting}
+                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors disabled:opacity-50"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Formulario del Modal */}
             <form onSubmit={handleTransferirSubmit}>
               <div className="p-5 space-y-4">
                 
-                {/* Info del Responsable Actual Dinámico */}
                 <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl text-xs">
                   <p className="text-slate-400 font-bold uppercase text-[9px] tracking-wider">Responsable en turno</p>
                   <p className="text-slate-700 font-bold mt-0.5">
@@ -437,25 +443,31 @@ export default function AdministradorActividades({
                   </p>
                 </div>
 
-                {/* Selección de Nuevo Responsable */}
+                {/* Mapeo seguro del select */}
                 <div className="space-y-1.5">
                   <label className="block text-[10px] font-bold uppercase text-slate-400 tracking-wider">
                     Asignar a nuevo responsable
                   </label>
                   <select
                     required
-                    value={selectedResponsable}
-                    onChange={(e) => setSelectedResponsable(e.target.value)}
-                    className="w-full bg-slate-50/50 border border-slate-200 text-xs font-semibold rounded-xl p-3 text-slate-700 outline-none focus:border-[#6A1B29] focus:bg-white transition-all cursor-pointer"
+                    disabled={isSubmitting}
+                    value={selectedResponsableId}
+                    onChange={(e) => setSelectedResponsableId(e.target.value)}
+                    className="w-full bg-slate-50/50 border border-slate-200 text-xs font-semibold rounded-xl p-3 text-slate-700 outline-none focus:border-[#6A1B29] focus:bg-white transition-all cursor-pointer disabled:opacity-60"
                   >
-                    <option value="" disabled>Selecciona un operador...</option>
-                    <option value="Carlos Ramírez">Carlos Ramírez (Especialista)</option>
-                    <option value="Juan Pérez">Juan Pérez (Mesa de ayuda)</option>
-                    <option value="Alejandra Rosas">Alejandra Rosas (Administradora)</option>
+                    <option value="" disabled>Selecciona un operador disponible...</option>
+                    {operadores && operadores.length > 0 ? (
+                      operadores.map((op) => (
+                        <option key={String(op.id)} value={String(op.id)}>
+                          {op.nombre} {op.rolAsignado ? `(${op.rolAsignado})` : ''}
+                        </option>
+                      ))
+                    ) : (
+                      <option disabled value="">No hay operadores cargados en el sistema</option>
+                    )}
                   </select>
                 </div>
 
-                {/* Motivo de Transferencia */}
                 <div className="space-y-1.5">
                   <label className="block text-[10px] font-bold uppercase text-slate-400 tracking-wider">
                     Motivo del reenvío / Justificación
@@ -463,28 +475,30 @@ export default function AdministradorActividades({
                   <textarea
                     required
                     rows={3}
+                    disabled={isSubmitting}
                     value={motivoTransferencia}
                     onChange={(e) => setMotivoTransferencia(e.target.value)}
                     placeholder="Describe detalladamente por qué el caso debe ser atendido por otra célula o especialista..."
-                    className="w-full bg-slate-50/50 border border-slate-200 text-xs font-medium rounded-xl p-3 text-slate-700 outline-none focus:border-[#6A1B29] focus:bg-white transition-all resize-none placeholder-slate-400"
+                    className="w-full bg-slate-50/50 border border-slate-200 text-xs font-medium rounded-xl p-3 text-slate-700 outline-none focus:border-[#6A1B29] focus:bg-white transition-all resize-none placeholder-slate-400 disabled:opacity-60"
                   />
                 </div>
               </div>
 
-              {/* Botones de acción del Footer */}
               <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end items-center gap-2">
                 <button
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() => setIsTransferModalOpen(false)}
-                  className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors"
+                  className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors disabled:opacity-50"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="bg-[#6A1B29] hover:bg-[#54141F] text-white font-bold text-xs px-5 py-2 rounded-xl shadow-sm transition-colors cursor-pointer"
+                  disabled={isSubmitting}
+                  className="bg-[#6A1B29] hover:bg-[#54141F] text-white font-bold text-xs px-5 py-2 rounded-xl shadow-sm transition-colors cursor-pointer flex items-center justify-center disabled:bg-slate-400 disabled:cursor-not-allowed"
                 >
-                  Confirmar Transferencia
+                  {isSubmitting ? "Procesando transferencia..." : "Confirmar Transferencia"}
                 </button>
               </div>
             </form>
