@@ -31,7 +31,9 @@ export default function ModalDetalleTicket({ isOpen, onClose, ticket }: ModalDet
   const [tabActiva, setTabActiva] = useState<"comentarios" | "historial">("comentarios");
   const [nuevoComentario, setNuevoComentario] = useState("");
   const [comentarios, setComentarios] = useState<any[]>([]);
+  const [historial, setHistorial] = useState<any[]>([]);
   const [cargandoComentarios, setCargandoComentarios] = useState(false);
+  const [cargandoHistorial, setCargandoHistorial] = useState(false);
   const [usuarioSesion, setUsuarioSesion] = useState<{ id: string; nombre: string; rol: string } | null>(null);
 
   // 1. Obtener la sesión del usuario de forma segura evitando "Unexpected end of JSON"
@@ -87,7 +89,37 @@ export default function ModalDetalleTicket({ isOpen, onClose, ticket }: ModalDet
     }
   }, [isOpen, ticket?.id, ticket?.descripcion, ticket?.fechaCreacion, ticket?.operador]);
 
-  // 3. Enviar comentario respetando la sesión activa
+  // 3. Cargar el historial desde el backend de NestJS
+  useEffect(() => {
+    if (isOpen && ticket?.id) {
+      setCargandoHistorial(true);
+      const primaryUrl = `http://localhost:4000/api/tickets/${ticket.id}/historial`;
+      const fallbackUrl = `http://localhost:4000/api/tickets/${ticket.id}/comentarios/historial`;
+
+      fetch(primaryUrl)
+        .then(async (res) => {
+          if (!res.ok) {
+            console.warn(`Historial primary endpoint failed: ${res.status} ${res.statusText}`);
+            const fallbackRes = await fetch(fallbackUrl);
+            if (!fallbackRes.ok) {
+              throw new Error(`Historial fallback failed: ${fallbackRes.status}`);
+            }
+            return fallbackRes.json();
+          }
+          return res.json();
+        })
+        .then((data) => setHistorial(data))
+        .catch((err) => {
+          console.error("Error al cargar historial:", err);
+          setHistorial([]);
+        })
+        .finally(() => setCargandoHistorial(false));
+    } else {
+      setHistorial([]);
+    }
+  }, [isOpen, ticket?.id]);
+
+  // 4. Enviar comentario respetando la sesión activa
  const handleEnviarComentario = async () => {
   if (!nuevoComentario.trim() || !ticket?.id) return;
 
@@ -347,67 +379,57 @@ export default function ModalDetalleTicket({ isOpen, onClose, ticket }: ModalDet
           )}
 
           {/* HISTORIAL */}
-          {tabActiva === "historial" && (
-            <div className="space-y-6">
-              <div className="bg-white rounded-xl border border-slate-200/80 p-5 shadow-sm">
-                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-6">
-                  Línea de tiempo de estatus
-                </h4>
-                <div className="overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-slate-200">
-                  <div className="min-w-[850px] relative px-4">
-                    <div className="absolute top-[38px] left-8 right-8 h-0.5 bg-slate-200 -z-0" />
-                    <div className="grid grid-cols-5 gap-2 relative z-10">
-                      
-                      <div className="text-center flex flex-col items-center">
-                        <span className="text-[11px] font-bold text-slate-800 block">Pendiente</span>
-                        <span className="text-[10px] text-slate-400 font-medium block mt-0.5">{fechaCreacionStr}</span>
-                        <span className="text-[10px] text-slate-500 italic block mt-0.5">Origen: {ticket.origen}</span>
-                        <div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] shadow-sm mt-3 border-4 border-white ring-1 ring-emerald-600/30 bg-emerald-600">
-                          ✓
-                        </div>
-                      </div>
-
-                      <div className="text-center flex flex-col items-center">
-                        <span className="text-[11px] font-bold text-slate-800 block">Asignado</span>
-                        <span className="text-[10px] text-slate-400 font-medium block mt-0.5">{ticket.operador ? fechaCreacionStr : "—"}</span>
-                        <span className="text-[10px] text-slate-500 font-medium block mt-0.5 truncate max-w-[150px]">
-                          {ticket.operador ? `Asignado a ${ticket.operador.nombre}` : "Esperando operador"}
-                        </span>
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] shadow-sm mt-3 border-4 border-white ${ticket.operador ? 'bg-emerald-600 ring-emerald-600/30' : 'bg-slate-300 ring-slate-300/30'}`}>
-                          {ticket.operador ? "✓" : "•"}
-                        </div>
-                      </div>
-
-                      <div className="text-center flex flex-col items-center">
-                        <span className="text-[11px] font-bold text-slate-800 block">En proceso</span>
-                        <span className="text-[10px] text-slate-400 font-medium block mt-0.5">—</span>
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] shadow-sm mt-3 border-4 border-white ${ticket.estado === 'EN_PROCESO' ? 'bg-blue-600 animate-pulse ring-blue-600/30' : 'bg-slate-300'}`}>
-                          •
-                        </div>
-                      </div>
-
-                      <div className="text-center flex flex-col items-center">
-                        <span className="text-[11px] font-bold text-slate-800 block">En revisión</span>
-                        <span className="text-[10px] text-slate-400 font-medium block mt-0.5">—</span>
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] shadow-sm mt-3 border-4 border-white ${ticket.estado === 'EN_REVISION' ? 'bg-amber-500 animate-pulse ring-amber-500/30' : 'bg-slate-300'}`}>
-                          •
-                        </div>
-                      </div>
-
-                      <div className="text-center flex flex-col items-center">
-                        <span className="text-[11px] font-bold text-slate-800 block">Finalizada</span>
-                        <span className="text-[10px] text-slate-400 font-medium block mt-0.5">—</span>
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] shadow-sm mt-3 border-4 border-white ${ticket.estado === 'FINALIZADA' ? 'bg-emerald-600 ring-emerald-600/30' : 'bg-slate-300'}`}>
-                          •
-                        </div>
-                      </div>
-
+        {tabActiva === "historial" && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl border border-slate-200/80 p-5 shadow-sm">
+              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-6">
+                Línea de tiempo de estatus
+              </h4>
+              
+              <div className="overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-slate-200">
+                <div className="flex items-start min-w-max px-4">
+                  {/* Aquí mapeamos el historial real. Asegúrate que ticket.historial contenga 
+                      la creación, las transferencias y cambios de estado en orden cronológico */}
+                  {cargandoHistorial ? (
+                    <div className="py-8 text-center text-xs text-slate-400 italic">
+                      Cargando historial...
                     </div>
-                  </div>
+                  ) : historial.length > 0 ? (
+                    historial.map((evento: any, index: number, arr: any[]) => {
+                      const isLast = index === arr.length - 1;
+                      return (
+                        <div key={evento.id || index} className="relative flex flex-col items-center w-32">
+                          {!isLast && (
+                            <div className="absolute top-[68px] left-[50%] w-full h-0.5 bg-slate-200 -z-0" />
+                          )}
+
+                          <div className="text-center flex flex-col items-center">
+                            <span className="text-[11px] font-bold text-slate-800 block">{evento.titulo}</span>
+                            <span className="text-[10px] text-slate-400 font-medium block mt-0.5">
+                              {new Date(evento.fecha).toLocaleDateString("es-MX", { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            <span className="text-[9px] text-slate-500 italic block mt-0.5 max-w-[100px] truncate">
+                              {evento.descripcion || ""}
+                            </span>
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] shadow-sm mt-3 border-4 border-white ${
+                              isLast 
+                                ? 'bg-blue-600 animate-pulse ring-1 ring-blue-600/30' 
+                                : 'bg-emerald-600 ring-1 ring-emerald-600/30'
+                            }`}>
+                              {isLast ? "•" : "✓"}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="text-xs text-slate-400 italic">No hay registros históricos disponibles.</p>
+                  )}
                 </div>
               </div>
             </div>
-          )}
+          </div>
+        )}
         </div>
 
         {/* FOOTER */}
