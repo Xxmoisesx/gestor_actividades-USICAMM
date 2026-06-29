@@ -13,7 +13,7 @@ export default async function DashboardPage() {
 
   const rol = isAdmin ? "ADMIN" : "OPERADOR";
 
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://backend-moises.vercel.app/';
 
   // 2. Construimos la URL de tickets dinámicamente
   // Si no es admin, añadimos el operadorId como query param
