@@ -60,7 +60,7 @@ export default function ModalDetalleTicket({ isOpen, onClose, ticket }: ModalDet
   useEffect(() => {
     if (isOpen && ticket?.id) {
       setCargandoComentarios(true);
-      fetch(`https://backend-moises.vercel.app//api/tickets/${ticket.id}/comentarios`)
+      fetch(`'http://localhost:4000'//api/tickets/${ticket.id}/comentarios`)
         .then((res) => {
           if (!res.ok) throw new Error("Error en la respuesta del servidor");
           return res.json();
@@ -93,8 +93,8 @@ export default function ModalDetalleTicket({ isOpen, onClose, ticket }: ModalDet
   useEffect(() => {
     if (isOpen && ticket?.id) {
       setCargandoHistorial(true);
-      const primaryUrl = `https://backend-moises.vercel.app//api/tickets/${ticket.id}/historial`;
-      const fallbackUrl = `https://backend-moises.vercel.app//api/tickets/${ticket.id}/comentarios/historial`;
+      const primaryUrl = `'http://localhost:4000'//api/tickets/${ticket.id}/historial`;
+      const fallbackUrl = `'http://localhost:4000'//api/tickets/${ticket.id}/comentarios/historial`;
 
       fetch(primaryUrl)
         .then(async (res) => {
@@ -131,7 +131,7 @@ export default function ModalDetalleTicket({ isOpen, onClose, ticket }: ModalDet
   }
 
   try {
-    const response = await fetch(`https://backend-moises.vercel.app//api/tickets/${ticket.id}/comentarios`, {
+    const response = await fetch(`'http://localhost:4000'//api/tickets/${ticket.id}/comentarios`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
