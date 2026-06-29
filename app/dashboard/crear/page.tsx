@@ -1,14 +1,22 @@
 import React from "react";
 import Link from "next/link";
-import { prisma } from "@/lib/prisma"; 
 import { createActivity } from "@/app/actions/activities";
 
 export default async function CrearActividadPage() {
-  // 1. Obtenemos los operadores directamente de la base de datos
-  const operadores = await prisma.user.findMany({
-    where: { rol: "OPERADOR" }, 
-    select: { id: true, nombre: true } 
-  });
+  // 1. Obtenemos los operadores desde el Backend
+  // Asegúrate de que tu backend tenga el endpoint GET /api/users
+  let operadores = [];
+  try {
+    const res = await fetch(`${process.env.BACKEND_URL}/api/users`, {
+      cache: "no-store",
+    });
+    if (res.ok) {
+      const data = await res.json();
+      operadores = Array.isArray(data) ? data : [];
+    }
+  } catch (error) {
+    console.error("Error al conectar con el backend:", error);
+  }
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -17,18 +25,15 @@ export default async function CrearActividadPage() {
         <h1 className="text-xl font-bold text-slate-800 tracking-tight">Crear actividad</h1>
       </div>
 
-      {/* 2. CORREGIDO: Conectamos la Server Action directamente sin envolverla */}
       <form 
         action={createActivity} 
         className="bg-white rounded-xl border border-slate-200 shadow-sm p-8 space-y-6"
-      >         
-        
+      >        
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
           
           {/* ================= COLUMNA IZQUIERDA ================= */}
           <div className="space-y-6">
             
-            {/* CAMPO: TÍTULO */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-700 block">Título</label>
               <input
@@ -40,7 +45,6 @@ export default async function CrearActividadPage() {
               />
             </div>
 
-            {/* CAMPO: DESCRIPCIÓN */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-700 block">Descripción</label>
               <textarea
@@ -52,7 +56,6 @@ export default async function CrearActividadPage() {
               />
             </div>
 
-            {/* CAMPO: PRIORIDAD */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-700 block">Prioridad</label>
               <div className="relative">
@@ -68,20 +71,13 @@ export default async function CrearActividadPage() {
                   <option value="MEDIA">🟡 Media</option>
                   <option value="BAJA">🟢 Baja</option>
                 </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
-                  <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
-                  </svg>
-                </div>
               </div>
             </div>
-
           </div>
 
           {/* ================= COLUMNA DERECHA ================= */}
           <div className="space-y-6">
             
-            {/* CAMPO DINÁMICO: ASIGNAR A */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-700 block">Asignar a</label>
               <div className="relative">
@@ -92,21 +88,15 @@ export default async function CrearActividadPage() {
                   required
                 >
                   <option value="" disabled hidden>Selecciona un operador</option>
-                  {operadores.map((op) => (
+                  {operadores.map((op: any) => (
                     <option key={op.id} value={op.id}>
                       {op.nombre}
                     </option>
                   ))}
                 </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
-                  <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
-                  </svg>
-                </div>
               </div>
             </div>
 
-            {/* CAMPO: FECHA LÍMITE */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-700 block">Fecha límite</label>
               <div className="relative">
@@ -118,11 +108,9 @@ export default async function CrearActividadPage() {
                 />
               </div>
             </div>
-
           </div>
         </div>
 
-        {/* ================= BOTONES DE ACCIÓN ================= */}
         <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
           <Link
             href="/dashboard/gestion"
@@ -137,7 +125,6 @@ export default async function CrearActividadPage() {
             Guardar actividad
           </button>
         </div>
-
       </form>
     </div>
   );

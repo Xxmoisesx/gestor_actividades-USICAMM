@@ -1,32 +1,49 @@
-// app/dashboard/gestion/page.tsx
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
-import AdminDashboard from "@/components/admin_dashboard"; // Nombre correcto
+import AdminDashboard from "@/components/admin_dashboard";
+
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const session = await auth();
-  const usuarioId = session?.user?.id;
-  const rol = (session?.user as any)?.role === "ADMIN" ? "ADMIN" : "OPERADOR";
-  
-  // 1. Obtener actividades
-  const actividades = await prisma.ticketActivity.findMany({
-    include: { operador: { select: { nombre: true } } }
-  });
 
-  // 2. Obtener operadores (NECESARIO para que el select funcione)
-  const listaOperadores = await prisma.user.findMany({
-    where: { rol: "OPERADOR" }, // Ajusta según tu DB
-    select: { id: true, nombre: true }
-  });
+  // 1. Extraemos el rol y el ID del usuario de la sesión
+  const user = session?.user as any;
+  const isAdmin = user?.role === "ADMIN";
+  const userId = user?.id;
+
+  const rol = isAdmin ? "ADMIN" : "OPERADOR";
+
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://backend-moises.vercel.app/';
+
+  // 2. Construimos la URL de tickets dinámicamente
+  // Si no es admin, añadimos el operadorId como query param
+  const ticketsUrl = isAdmin 
+    ? `${BACKEND_URL}/api/tickets` 
+    : `${BACKEND_URL}/api/tickets?operadorId=${userId}`;
+
+  // 3. Hacemos el fetch con la URL ajustada
+  const [actividadesRes, operadoresRes] = await Promise.all([
+    fetch(ticketsUrl, { cache: 'no-store' }),
+    fetch(`${BACKEND_URL}/api/users`, { cache: 'no-store' })
+  ]);
+
+  if (!actividadesRes.ok) {
+     throw new Error(`Error al cargar tickets: ${actividadesRes.status}`);
+  }
+  
+  if (!operadoresRes.ok) {
+     throw new Error(`Error al cargar operadores: ${operadoresRes.status}`);
+  }
+
+  const actividades = await actividadesRes.json();
+  const listaOperadores = await operadoresRes.json();
 
   return (
     <div>
-      {/* 3. Renderizamos el componente con el nombre correcto */}
       <AdminDashboard 
         rol={rol} 
         ticketsBaseDatos={actividades} 
-        operadores={listaOperadores} // Pasamos la lista real
+        operadores={listaOperadores}
       />
     </div>
   );
