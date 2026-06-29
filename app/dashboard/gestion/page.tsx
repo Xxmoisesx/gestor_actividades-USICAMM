@@ -1,32 +1,40 @@
-// app/dashboard/gestion/page.tsx
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
-import AdminDashboard from "@/components/admin_dashboard"; // Nombre correcto
+import AdminDashboard from "@/components/admin_dashboard";
+
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  // 1. Obtenemos la sesión del usuario
   const session = await auth();
-  const usuarioId = session?.user?.id;
-  const rol = (session?.user as any)?.role === "ADMIN" ? "ADMIN" : "OPERADOR";
-  
-  // 1. Obtener actividades
-  const actividades = await prisma.ticketActivity.findMany({
-    include: { operador: { select: { nombre: true } } }
-  });
 
-  // 2. Obtener operadores (NECESARIO para que el select funcione)
-  const listaOperadores = await prisma.user.findMany({
-    where: { rol: "OPERADOR" }, // Ajusta según tu DB
-    select: { id: true, nombre: true }
-  });
+  // 2. Definimos el rol correctamente antes de pasarlo al componente
+  // Si no hay sesión o no hay rol, por seguridad asignamos "OPERADOR"
+  const rol = (session?.user as any)?.role === "ADMIN" ? "ADMIN" : "OPERADOR";
+
+  // 3. Hacemos las peticiones al backend
+  const [actividadesRes, operadoresRes] = await Promise.all([
+    fetch(`${process.env.BACKEND_URL}/api/tickets`, { cache: 'no-store' }),
+    fetch(`${process.env.BACKEND_URL}/api/users`, { cache: 'no-store' })
+  ]);
+
+  // Si alguna petición falla, lanzamos el error para que Next.js lo capture
+  if (!actividadesRes.ok) {
+     throw new Error(`Error al cargar tickets: ${actividadesRes.status} ${actividadesRes.statusText}`);
+  }
+  
+  if (!operadoresRes.ok) {
+     throw new Error(`Error al cargar operadores: ${operadoresRes.status} ${operadoresRes.statusText}`);
+  }
+
+  const actividades = await actividadesRes.json();
+  const listaOperadores = await operadoresRes.json();
 
   return (
     <div>
-      {/* 3. Renderizamos el componente con el nombre correcto */}
       <AdminDashboard 
         rol={rol} 
         ticketsBaseDatos={actividades} 
-        operadores={listaOperadores} // Pasamos la lista real
+        operadores={listaOperadores}
       />
     </div>
   );

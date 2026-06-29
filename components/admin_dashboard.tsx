@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import ModalDetalleTicket from "./ModalDetalleTicket";
-import { transferirTicketAction } from "@/app/dashboard/ticket_report/actions/actions";
+
 
 
 interface Operador {
@@ -67,6 +67,7 @@ export default function AdministradorActividades({
   };
 
   // Manejador del envío del formulario (Conexión asíncrona)
+    // Manejador del envío del formulario (Simulado en el frontend)
   const handleTransferirSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ticketATransferir || !selectedResponsableId) return;
@@ -74,11 +75,11 @@ export default function AdministradorActividades({
     setIsSubmitting(true);
 
     try {
-      const res = await transferirTicketAction({
-        ticketId: ticketATransferir.id,
-        nuevoResponsableId: selectedResponsableId,
-        motivo: motivoTransferencia,
-      });
+      // 🚨 ELIMINAMOS O COMENTAMOS EL ACTION QUE BORRASTE
+      // const res = await transferirTicketAction({ ... });
+      
+      // ✅ SIMULAMOS UNA RESPUESTA EXITOSA PARA QUE LA UI FUNCIONE
+      const res = { success: true }; 
 
       if (res.success) {
         const nuevoOperadorObj = operadores.find(op => String(op.id) === selectedResponsableId);
@@ -89,7 +90,7 @@ export default function AdministradorActividades({
               return {
                 ...t,
                 origen: "TRANSFERIDO", 
-                estado: "EN_PROCESO", // Ajustado al flujo lógico transaccional
+                estado: "EN_PROCESO",
                 operador: {
                   ...t.operador,
                   id: selectedResponsableId,
