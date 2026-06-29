@@ -4,26 +4,35 @@ import AdminDashboard from "@/components/admin_dashboard";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  // 1. Obtenemos la sesión del usuario
   const session = await auth();
 
-  // 2. Definimos el rol correctamente antes de pasarlo al componente
-  // Si no hay sesión o no hay rol, por seguridad asignamos "OPERADOR"
-  const rol = (session?.user as any)?.role === "ADMIN" ? "ADMIN" : "OPERADOR";
+  // 1. Extraemos el rol y el ID del usuario de la sesión
+  const user = session?.user as any;
+  const isAdmin = user?.role === "ADMIN";
+  const userId = user?.id;
 
-  // 3. Hacemos las peticiones al backend
+  const rol = isAdmin ? "ADMIN" : "OPERADOR";
+
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
+
+  // 2. Construimos la URL de tickets dinámicamente
+  // Si no es admin, añadimos el operadorId como query param
+  const ticketsUrl = isAdmin 
+    ? `${BACKEND_URL}/api/tickets` 
+    : `${BACKEND_URL}/api/tickets?operadorId=${userId}`;
+
+  // 3. Hacemos el fetch con la URL ajustada
   const [actividadesRes, operadoresRes] = await Promise.all([
-    fetch(`${process.env.BACKEND_URL}/api/tickets`, { cache: 'no-store' }),
-    fetch(`${process.env.BACKEND_URL}/api/users`, { cache: 'no-store' })
+    fetch(ticketsUrl, { cache: 'no-store' }),
+    fetch(`${BACKEND_URL}/api/users`, { cache: 'no-store' })
   ]);
 
-  // Si alguna petición falla, lanzamos el error para que Next.js lo capture
   if (!actividadesRes.ok) {
-     throw new Error(`Error al cargar tickets: ${actividadesRes.status} ${actividadesRes.statusText}`);
+     throw new Error(`Error al cargar tickets: ${actividadesRes.status}`);
   }
   
   if (!operadoresRes.ok) {
-     throw new Error(`Error al cargar operadores: ${operadoresRes.status} ${operadoresRes.statusText}`);
+     throw new Error(`Error al cargar operadores: ${operadoresRes.status}`);
   }
 
   const actividades = await actividadesRes.json();

@@ -37,6 +37,7 @@ export default function AdministradorActividades({
   useEffect(() => {
     setTickets(ticketsBaseDatos);
   }, [ticketsBaseDatos]);
+  
 
   // ==========================================
   // ESTADOS PARA EL MODAL DE DETALLES
@@ -47,6 +48,7 @@ export default function AdministradorActividades({
   // ==========================================
   // ESTADOS Y LÓGICA DE TRANSFERENCIA (CONECTADO AL BACKEND)
   // ==========================================
+  const [searchQuery, setSearchQuery] = useState("");
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false); 
   const [ticketATransferir, setTicketATransferir] = useState<any>(null); 
   const [selectedResponsableId, setSelectedResponsableId] = useState<string>(""); 
@@ -69,53 +71,41 @@ export default function AdministradorActividades({
   // Manejador del envío del formulario (Conexión asíncrona)
     // Manejador del envío del formulario (Simulado en el frontend)
   const handleTransferirSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!ticketATransferir || !selectedResponsableId) return;
+  e.preventDefault();
+  if (!ticketATransferir || !selectedResponsableId) return;
 
-    setIsSubmitting(true);
+  setIsSubmitting(true);
 
-    try {
-      // 🚨 ELIMINAMOS O COMENTAMOS EL ACTION QUE BORRASTE
-      // const res = await transferirTicketAction({ ... });
-      
-      // ✅ SIMULAMOS UNA RESPUESTA EXITOSA PARA QUE LA UI FUNCIONE
-      const res = { success: true }; 
+  try {
+    // 1. Apuntamos a la ruta /transfer con el método POST
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/tickets/${ticketATransferir.id}/transfer`, {
+      method: "POST", // IMPORTANTE: Tu controlador usa @Post para esta ruta
+      headers: {
+        "Content-Type": "application/json",
+      },
+      // 2. Los nombres deben coincidir EXACTAMENTE con los de tu backend
+      body: JSON.stringify({
+        nuevoResponsableId: selectedResponsableId, 
+        motivo: motivoTransferencia
+      }),
+    });
 
-      if (res.success) {
-        const nuevoOperadorObj = operadores.find(op => String(op.id) === selectedResponsableId);
-
-        setTickets(prevTickets => 
-          prevTickets.map(t => {
-            if (t.id === ticketATransferir.id) {
-              return {
-                ...t,
-                origen: "TRANSFERIDO", 
-                estado: "EN_PROCESO",
-                operador: {
-                  ...t.operador,
-                  id: selectedResponsableId,
-                  nombre: nuevoOperadorObj ? nuevoOperadorObj.nombre : "Nuevo Operador"
-                }
-              };
-            }
-            return t;
-          })
-        );
-
-        // Resetear variables de control
-        setSelectedResponsableId("");
-        setMotivoTransferencia("");
-        setTicketATransferir(null);
-        setIsTransferModalOpen(false);
-      }
-    } catch (error) {
-      console.error("Error al procesar la transferencia en el cliente:", error);
-      alert("Hubo un error al transferir el ticket. Por favor, inténtalo de nuevo.");
-    } finally {
-      setIsSubmitting(false);
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.message || "Error al actualizar en base de datos");
     }
-  };
 
+    // 3. Si todo sale bien, recargamos
+    alert("Ticket transferido correctamente");
+    window.location.reload(); 
+
+  } catch (error) {
+    console.error("Error al procesar la transferencia:", error);
+    alert("Hubo un error al guardar en la base de datos.");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
   // ==========================================
   // CÓMPUTO DINÁMICO DE FILTROS Y MÉTRICAS
   // ==========================================
@@ -128,12 +118,24 @@ export default function AdministradorActividades({
   const transferidasTickets = tickets.filter(t => t.origen === "Transferido" || t.origen === "TRANSFERIDO");
 
   const ticketsFiltrados = tickets.filter(t => {
-    if (tabActiva === "SIN_ASIGNAR") return !t.operador || !t.operador?.nombre;
-    if (tabActiva === "CRITICAS") return t.prioridad === "CRITICA" || t.prioridad === "ALTA";
-    if (tabActiva === "VENCIDAS") return t.fechaLimite && t.estado !== "FINALIZADO" && new Date(t.fechaLimite) < new Date();
-    if (tabActiva === "TRANSFERIDAS") return t.origen === "Transferido" || t.origen === "TRANSFERIDO";
-    return true; 
-  });
+  // Filtro por Tab (Pestaña)
+  let cumpleTab = true;
+  if (tabActiva === "SIN_ASIGNAR") cumpleTab = !t.operador || !t.operador?.nombre;
+  else if (tabActiva === "CRITICAS") cumpleTab = t.prioridad === "CRITICA" || t.prioridad === "ALTA";
+  else if (tabActiva === "VENCIDAS") cumpleTab = t.fechaLimite && t.estado !== "FINALIZADO" && new Date(t.fechaLimite) < new Date();
+  else if (tabActiva === "TRANSFERIDAS") cumpleTab = t.origen === "Transferido" || t.origen === "TRANSFERIDO";
+
+  // Filtro por Búsqueda (Texto)
+  // Buscamos en título, id y código/folio
+  const busquedaNormalizada = searchQuery.toLowerCase();
+  const cumpleBusqueda = 
+    t.titulo?.toLowerCase().includes(busquedaNormalizada) || 
+    t.id?.toString().includes(busquedaNormalizada) ||
+    t.codigo?.toString().toLowerCase().includes(busquedaNormalizada) ||
+    t.folio?.toString().toLowerCase().includes(busquedaNormalizada);
+
+  return cumpleTab && cumpleBusqueda;
+});
 
   // ==========================================
   // CÓMPUTO DINÁMICO DE CARGA DE TRABAJO
@@ -195,15 +197,7 @@ export default function AdministradorActividades({
               {vencidasTickets.length}
             </span>
           </button>
-          <button 
-            onClick={() => setTabActiva("TRANSFERIDAS")}
-            className={`pb-2 whitespace-nowrap flex items-center gap-1.5 transition-all ${tabActiva === "TRANSFERIDAS" ? "text-indigo-700 border-b-2 border-indigo-700 font-bold" : "text-slate-500 hover:text-slate-800"}`}
-          >
-            Transferidas 
-            <span className="bg-blue-50 text-blue-600 py-0.5 px-2 rounded-full text-[10px]">
-              {transferidasTickets.length}
-            </span>
-          </button>
+          
         </div>
         
         <div className="flex items-center gap-3">
@@ -222,19 +216,14 @@ export default function AdministradorActividades({
         <div className="relative w-full md:w-72">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
           <input 
-            type="text" 
-            placeholder="Buscar por folio, título..." 
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-          />
+              type="text" 
+              placeholder="Buscar por folio, título..." 
+              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
         </div>
-        <div className="flex gap-2 w-full md:w-auto justify-end">
-          <button className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
-            <Filter className="w-3.5 h-3.5" /> Filtrar
-          </button>
-          <button className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
-            <Download className="w-3.5 h-3.5" /> Exportar
-          </button>
-        </div>
+        
       </div>
       
       {/* 4. CONTENIDO PRINCIPAL: TABLA Y PANELES LATERALES */}

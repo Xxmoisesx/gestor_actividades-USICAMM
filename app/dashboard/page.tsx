@@ -1,25 +1,41 @@
-// app/dashboard/page.tsx
 import { auth } from "@/auth";
-import OperatorDashboard from "@/components/dashboard_operador";
-export default async function GestionPage() {
+import OperatorDashboard from "@/components/dashboard_operador"; 
+
+export default async function DashboardPage() {
   try {
-    const res = await fetch(`${process.env.BACKEND_URL}/api/tickets`, {
+    // 1. Obtenemos la sesión para identificar quién está entrando
+    const session = await auth();
+    const user = session?.user as any;
+    
+    // 2. Determinamos la URL dinámicamente
+    // Si es ADMIN no filtramos, si es OPERADOR filtramos por su ID
+    const isAdmin = user?.role === "ADMIN";
+    const userId = user?.id;
+    const baseUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/tickets`;
+    
+    const url = isAdmin ? baseUrl : `${baseUrl}?operadorId=${userId}`;
+
+    // 3. Realizamos el fetch con la URL construida
+    const res = await fetch(url, {
       cache: "no-store",
     });
 
     if (!res.ok) {
-       // Esto imprimirá el error real en tu terminal de VS Code
-       const errorText = await res.text();
-       console.error("ERROR EN FETCH DE TICKETS:", res.status, errorText);
        throw new Error(`Error en API: ${res.status}`);
     }
 
     const tickets = await res.json();
-    // ... tu lógica de renderizado
+    
+    return (
+      <main>
+        <OperatorDashboard 
+           ticketsBaseDatos={tickets} 
+        />
+      </main>
+    );
     
   } catch (error) {
-    // ESTO ES LO QUE DEBES VER EN LA TERMINAL:
-    console.error("DEBUG - CAUSA DEL ERROR:", error); 
-    return <div>Error al cargar los datos: {String(error)}</div>;
+    console.error("ERROR EN DASHBOARD PRINCIPAL:", error); 
+    return <div>Error al cargar los datos.</div>;
   }
 }
