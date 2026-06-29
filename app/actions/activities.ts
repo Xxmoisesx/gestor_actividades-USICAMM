@@ -14,7 +14,7 @@ export async function createActivity(formData: FormData) {
   };
 
   // 2. Realizamos la petición
-  const res = await fetch(`${process.env.BACKEND_URL}/api/tickets`, { // Asegúrate de que esta URL sea la correcta para crear tickets
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/tickets`, { // Asegúrate de que esta URL sea la correcta para crear tickets
     method: "POST",
     headers: {
       "Content-Type": "application/json",

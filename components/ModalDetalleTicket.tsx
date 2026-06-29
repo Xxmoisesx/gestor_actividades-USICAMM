@@ -1,3 +1,6 @@
+
+
+
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -60,7 +63,8 @@ export default function ModalDetalleTicket({ isOpen, onClose, ticket }: ModalDet
   useEffect(() => {
     if (isOpen && ticket?.id) {
       setCargandoComentarios(true);
-      fetch(`'http://localhost:4000'//api/tickets/${ticket.id}/comentarios`)
+      // ✅ CORREGIDO: URL limpia sin comillas simples y apuntando a historial
+      fetch(`http://localhost:4000/api/tickets/${ticket.id}/comentarios`)
         .then((res) => {
           if (!res.ok) throw new Error("Error en la respuesta del servidor");
           return res.json();
@@ -93,8 +97,9 @@ export default function ModalDetalleTicket({ isOpen, onClose, ticket }: ModalDet
   useEffect(() => {
     if (isOpen && ticket?.id) {
       setCargandoHistorial(true);
-      const primaryUrl = `'http://localhost:4000'//api/tickets/${ticket.id}/historial`;
-      const fallbackUrl = `'http://localhost:4000'//api/tickets/${ticket.id}/comentarios/historial`;
+      // ✅ CORREGIDO: URLs limpias
+      const primaryUrl = `http://localhost:4000/api/tickets/${ticket.id}/historial`;
+      const fallbackUrl = `http://localhost:4000/api/tickets/${ticket.id}/comentarios/historial`;
 
       fetch(primaryUrl)
         .then(async (res) => {
@@ -131,7 +136,8 @@ export default function ModalDetalleTicket({ isOpen, onClose, ticket }: ModalDet
   }
 
   try {
-    const response = await fetch(`'http://localhost:4000'//api/tickets/${ticket.id}/comentarios`, {
+    // ✅ CORREGIDO: URL limpia
+    const response = await fetch(`http://localhost:4000/api/tickets/${ticket.id}/comentarios`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

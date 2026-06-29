@@ -3,16 +3,24 @@ import Link from "next/link";
 import { createActivity } from "@/app/actions/activities";
 
 export default async function CrearActividadPage() {
-  // 1. Obtenemos los operadores desde el Backend
-  // Asegúrate de que tu backend tenga el endpoint GET /api/users
   let operadores = [];
+  
+  // 1. Verificar que la URL existe
+  const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users`;
+  console.log("Intentando conectar a:", url); // <--- MIRA TU TERMINAL
+
   try {
-    const res = await fetch(`${process.env.BACKEND_URL}/api/users`, {
-      cache: "no-store",
-    });
-    if (res.ok) {
-      const data = await res.json();
-      operadores = Array.isArray(data) ? data : [];
+    const res = await fetch(url, { cache: "no-store" });
+    
+    // Verificamos si la respuesta fue exitosa
+    if (!res.ok) {
+        console.error("Error en la respuesta del backend:", res.status, res.statusText);
+    } else {
+        const data = await res.json();
+        console.log("Datos recibidos del backend:", data); // <--- MIRA TU TERMINAL
+        
+        // Ajusta esto según lo que veas en el log (ej. si la respuesta es { users: [...] })
+        operadores = Array.isArray(data) ? data : (data.users || []); 
     }
   } catch (error) {
     console.error("Error al conectar con el backend:", error);
